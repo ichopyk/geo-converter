@@ -2,26 +2,69 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Конвертер координат</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: sans-serif;
+    }
+    #map {
+      height: 100%;
+      width: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+    .container {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 300px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 20px;
+      margin: 10px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      z-index: 1;
+    }
+    input, button {
+      width: 100%;
+      margin-top: 0.5rem;
+      padding: 0.5rem;
+    }
+  </style>
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY"></script>
 </head>
 <body>
+  <div id="map"></div>
+
   <div class="container">
     <h1>Конвертер координат</h1>
-
     <form id="convert-form">
-      <label>Широта (lat):</label>
-      <input type="text" id="lat" required>
-
-      <label>Довгота (lon):</label>
-      <input type="text" id="lon" required>
-
+      <label for="lat">Широта (Lat):</label>
+      <input type="text" id="lat" name="lat" required>
+      <label for="lon">Довгота (Lon):</label>
+      <input type="text" id="lon" name="lon" required>
       <button type="submit">Конвертувати</button>
     </form>
-
     <div id="result"></div>
   </div>
 
+  <script>
+    function initMap() {
+      new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 50.4501, lng: 30.5234 }, // Київ
+        zoom: 5,
+      });
+    }
+    window.initMap = initMap;
+  </script>
   <script src="script.js"></script>
 </body>
 </html>
+
