@@ -4,7 +4,7 @@ document.getElementById("convert-form").addEventListener("submit", async functio
   const lat = document.getElementById("lat").value;
   const lon = document.getElementById("lon").value;
 
-  const response = await fetch("https://<твій-ngrok-адрес>/convert", {
+  const response = await fetch("https://287c-34-9-41-37.ngrok-free.app/", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
