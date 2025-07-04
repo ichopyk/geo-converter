@@ -1,70 +1,143 @@
 <!DOCTYPE html>
-<html lang="uk">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Конвертер координат</title>
-  <link rel="stylesheet" href="style.css">
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      font-family: sans-serif;
-    }
-    #map {
-      height: 100%;
-      width: 100%;
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 0;
-    }
-    .container {
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 300px;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 20px;
-      margin: 10px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
-      z-index: 1;
-    }
-    input, button {
-      width: 100%;
-      margin-top: 0.5rem;
-      padding: 0.5rem;
-    }
-  </style>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap" async defer></script>
-</head>
-<body>
-  <div id="map"></div>
+<html>
+  <head>
+    <title>GeoConverter</title>
+    <meta charset="UTF-8">
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
+      #map {
+        height: 100%;
+        width: 100%;
+        position: absolute;
+        z-index: 0;
+      }
+      .input-box {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 320px;
+        background: white;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        z-index: 10;
+        font-family: sans-serif;
+        font-size: 14px;
+      }
+      input {
+        width: 100%;
+        margin-bottom: 10px;
+        padding: 5px;
+      }
+      button {
+        padding: 8px 15px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      h4 {
+        margin-top: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
 
-  <div class="container">
-    <h1>Конвертер координат</h1>
-    <form id="convert-form">
-      <label for="lat">Широта (Lat):</label>
-      <input type="text" id="lat" name="lat" required>
-      <label for="lon">Довгота (Lon):</label>
-      <input type="text" id="lon" name="lon" required>
-      <button type="submit">Конвертувати</button>
-    </form>
-    <div id="result"></div>
-  </div>
+    <div class="input-box">
+      <h4>Geo to UTM/MGRS</h4>
+      <input type="number" id="lat" placeholder="Latitude">
+      <input type="number" id="lon" placeholder="Longitude">
+      <button onclick="convert()">Convert</button>
+      <div id="result" style="margin-top:10px;"></div>
+      <hr>
+      <h4>Reverse Converter</h4>
+      <input type="text" id="mgrsInput" placeholder="MGRS (e.g. 33UXP04)">
+      <input type="number" id="utmEasting" placeholder="UTM Easting">
+      <input type="number" id="utmNorthing" placeholder="UTM Northing">
+      <input type="text" id="utmZone" placeholder="Zone (e.g. 33N)">
+      <button onclick="convertReverse()">Convert</button>
+      <div id="reverseResult" style="margin-top:10px;"></div>
+    </div>
 
-  <script>
-    function initMap() {
-      new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 50.4501, lng: 30.5234 }, // Київ
-        zoom: 5,
-      });
-    }
-    window.initMap = initMap;
-  </script>
-  <script src="script.js"></script>
-</body>
+    <script>
+      const API_BASE = "https://40e7-34-118-242-155.ngrok-free.app"; // заміни на нову адресу при потребі
+
+      function convert() {
+        const lat = parseFloat(document.getElementById("lat").value);
+        const lon = parseFloat(document.getElementById("lon").value);
+        fetch(API_BASE + "/convert", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lat, lon })
+        })
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("result").innerHTML = `
+            <strong>UTM:</strong> ${data.utm.easting.toFixed(2)} E, ${data.utm.northing.toFixed(2)} N, Zone ${data.utm.zone}<br>
+            <strong>MGRS:</strong> ${data.mgrs}
+          `;
+        })
+        .catch(() => {
+          document.getElementById("result").innerText = "❌ Error!";
+        });
+      }
+
+      function convertReverse() {
+        const mgrs = document.getElementById("mgrsInput").value.trim();
+        const easting = document.getElementById("utmEasting").value;
+        const northing = document.getElementById("utmNorthing").value;
+        const zone = document.getElementById("utmZone").value.trim();
+
+        let data = {};
+        if (mgrs) {
+          data = { mgrs };
+        } else if (easting && northing && zone) {
+          data = {
+            easting: parseFloat(easting),
+            northing: parseFloat(northing),
+            zone
+          };
+        } else {
+          alert("Please enter either MGRS or UTM (easting/northing/zone)");
+          return;
+        }
+
+        fetch(API_BASE + "/reverse", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.lat && data.lon) {
+            document.getElementById("reverseResult").innerHTML = `
+              <strong>Latitude:</strong> ${data.lat.toFixed(6)}<br>
+              <strong>Longitude:</strong> ${data.lon.toFixed(6)}
+            `;
+          } else {
+            document.getElementById("reverseResult").innerText = "❌ Error: " + (data.error || "Unknown");
+          }
+        })
+        .catch(() => {
+          document.getElementById("reverseResult").innerText = "❌ Error!";
+        });
+      }
+
+      function initMap() {
+        new google.maps.Map(document.getElementById("map"), {
+          center: { lat: 48.3794, lng: 31.1656 },
+          zoom: 5
+        });
+      }
+    </script>
+    <script async
+      <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap" async defer></script>
+    </script>
+  </body>
 </html>
+
+
 
