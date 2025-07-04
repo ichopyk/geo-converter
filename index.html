@@ -63,7 +63,7 @@
     </div>
 
     <script>
-      const API_BASE = "https://7f7b-34-118-242-155.ngrok-free.app"; // заміни на нову адресу при потребі
+      const API_BASE = "https://7f7b-34-118-242-155.ngrok-free.app"; // ← 🔁 ПІДСТАВ СВОЮ АДРЕСУ
 
       function convert() {
         const lat = parseFloat(document.getElementById("lat").value);
@@ -73,23 +73,23 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ lat, lon })
         })
-        .then(res => res.json())
-        .then(data => {
-          document.getElementById("result").innerHTML = `
-            <strong>UTM:</strong> ${data.utm.easting.toFixed(2)} E, ${data.utm.northing.toFixed(2)} N, Zone ${data.utm.zone}<br>
-            <strong>MGRS:</strong> ${data.mgrs}
-          `;
-        })
-        .catch(() => {
-          document.getElementById("result").innerText = "❌ Error!";
-        });
+          .then(res => res.json())
+          .then(data => {
+            document.getElementById("result").innerHTML = `
+              <strong>UTM:</strong> ${data.utm.easting.toFixed(2)} E, ${data.utm.northing.toFixed(2)} N, Zone ${data.utm.zone}<br>
+              <strong>MGRS:</strong> ${data.mgrs}
+            `;
+          })
+          .catch(() => {
+            document.getElementById("result").innerText = "❌ Error!";
+          });
       }
 
       function convertReverse() {
-        const mgrs = document.getElementById("mgrsInput").value.trim();
+        const mgrs = document.getElementById("mgrsInput").value;
         const easting = document.getElementById("utmEasting").value;
         const northing = document.getElementById("utmNorthing").value;
-        const zone = document.getElementById("utmZone").value.trim();
+        const zone = document.getElementById("utmZone").value;
 
         let data = {};
         if (mgrs) {
@@ -98,10 +98,10 @@
           data = {
             easting: parseFloat(easting),
             northing: parseFloat(northing),
-            zone
+            zone: zone
           };
         } else {
-          alert("Please enter either MGRS or UTM (easting/northing/zone)");
+          alert("Enter either MGRS or full UTM!");
           return;
         }
 
@@ -110,34 +110,34 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data)
         })
-        .then(res => res.json())
-        .then(data => {
-          if (data.lat && data.lon) {
-            document.getElementById("reverseResult").innerHTML = `
-              <strong>Latitude:</strong> ${data.lat.toFixed(6)}<br>
-              <strong>Longitude:</strong> ${data.lon.toFixed(6)}
-            `;
-          } else {
-            document.getElementById("reverseResult").innerText = "❌ Error: " + (data.error || "Unknown");
-          }
-        })
-        .catch(() => {
-          document.getElementById("reverseResult").innerText = "❌ Error!";
-        });
+          .then(res => res.json())
+          .then(result => {
+            if (result.lat && result.lon) {
+              document.getElementById("reverseResult").innerHTML =
+                `Latitude: ${result.lat.toFixed(6)}<br>Longitude: ${result.lon.toFixed(6)}`;
+            } else {
+              document.getElementById("reverseResult").innerHTML = `❌ Error: ${result.error}`;
+            }
+          })
+          .catch(err => {
+            document.getElementById("reverseResult").innerHTML = "❌ Fetch error";
+          });
       }
 
-      function initMap() {
+      window.initMap = function () {
         new google.maps.Map(document.getElementById("map"), {
           center: { lat: 48.3794, lng: 31.1656 },
           zoom: 5
         });
-      }
+      };
     </script>
+
     <script async
       src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap">
     </script>
   </body>
 </html>
+
 
 
 
