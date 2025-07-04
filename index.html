@@ -3,67 +3,138 @@
 <head>
   <meta charset="UTF-8" />
   <title>GeoConverter JS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: sans-serif; padding: 2em; max-width: 600px; margin: auto; }
-    input, button { font-size: 16px; margin: 0.5em 0; width: 100%; padding: 0.5em; }
-    .result { margin-top: 1em; background: #f0f0f0; padding: 1em; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 2em;
+      background: #f7f9fb;
+      max-width: 600px;
+      margin: auto;
+    }
+
+    h2 {
+      color: #333;
+    }
+
+    label {
+      display: block;
+      margin-top: 1em;
+      font-weight: bold;
+    }
+
+    input, button {
+      font-size: 16px;
+      padding: 0.5em;
+      width: 100%;
+      margin-top: 0.2em;
+      box-sizing: border-box;
+    }
+
+    button {
+      margin-top: 1em;
+      background: #1976d2;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #125ea2;
+    }
+
+    .result {
+      background: #eef;
+      padding: 1em;
+      margin-top: 1em;
+      border-radius: 5px;
+      font-family: monospace;
+    }
+
+    hr {
+      margin: 3em 0;
+      border: 1px dashed #ccc;
+    }
   </style>
 
-  <!-- ✅ Стабільна, не-модульна версія geodesy -->
+  <!-- ✅ Підключення бібліотеки без модулів -->
   <script src="https://cdn.jsdelivr.net/gh/chopyk/geodesy-browser@main/geodesy.min.js"></script>
 </head>
 <body>
 
-<h2>Lat/Lon → UTM / MGRS</h2>
-<label>Latitude:</label>
-<input type="number" step="any" id="lat">
-<label>Longitude:</label>
-<input type="number" step="any" id="lon">
-<button onclick="latLonConvert()">Convert</button>
+  <h2>Lat/Lon → UTM / MGRS</h2>
+  <label for="lat">Latitude:</label>
+  <input type="number" step="any" id="lat" placeholder="e.g. 49.8397">
+  
+  <label for="lon">Longitude:</label>
+  <input type="number" step="any" id="lon" placeholder="e.g. 24.0297">
+  
+  <button onclick="latLonConvert()">Convert</button>
+  <div class="result" id="result1"></div>
 
-<div class="result" id="result1"></div>
+  <hr>
 
-<hr>
+  <h2>MGRS → Lat/Lon</h2>
+  <label for="mgrs">MGRS:</label>
+  <input type="text" id="mgrs" placeholder="e.g. 36UXV1234567890">
+  
+  <button onclick="mgrsToLatLon()">Convert</button>
+  <div class="result" id="result2"></div>
 
-<h2>MGRS → Lat/Lon</h2>
-<label>MGRS:</label>
-<input type="text" id="mgrs">
-<button onclick="mgrsToLatLon()">Convert</button>
+  <script>
+    function latLonConvert() {
+      if (typeof geodesy === "undefined") {
+        alert("❌ Бібліотека geodesy не завантажена!");
+        return;
+      }
 
-<div class="result" id="result2"></div>
+      const lat = parseFloat(document.getElementById("lat").value);
+      const lon = parseFloat(document.getElementById("lon").value);
 
-<script>
-  function latLonConvert() {
-    const lat = parseFloat(document.getElementById("lat").value);
-    const lon = parseFloat(document.getElementById("lon").value);
+      if (isNaN(lat) || isNaN(lon)) {
+        alert("Введіть коректні координати!");
+        return;
+      }
 
-    const point = new geodesy.LatLon(lat, lon);
-    const utm = point.toUtm();
-    const mgrsStr = utm.toMgrs().toString();
+      const point = new geodesy.LatLon(lat, lon);
+      const utm = point.toUtm();
+      const mgrs = utm.toMgrs().toString();
 
-    document.getElementById("result1").innerHTML =
-      `<strong>UTM:</strong> ${utm.zone}${utm.hemisphere} ${utm.easting.toFixed(2)} ${utm.northing.toFixed(2)}<br>` +
-      `<strong>MGRS:</strong> ${mgrsStr}`;
-  }
-
-  function mgrsToLatLon() {
-    const mgrsStr = document.getElementById("mgrs").value.trim();
-    try {
-      const mgrsObj = geodesy.Mgrs.parse(mgrsStr);
-      const utm = mgrsObj.toUtm();
-      const latlon = utm.toLatLonE();
-
-      document.getElementById("result2").innerHTML =
-        `<strong>Latitude:</strong> ${latlon.lat.toFixed(6)}<br>` +
-        `<strong>Longitude:</strong> ${latlon.lon.toFixed(6)}`;
-    } catch (e) {
-      document.getElementById("result2").innerHTML = `❌ Error: ${e.message}`;
+      document.getElementById("result1").innerHTML =
+        `<strong>UTM:</strong> ${utm.zone}${utm.hemisphere} ${utm.easting.toFixed(2)} ${utm.northing.toFixed(2)}<br>` +
+        `<strong>MGRS:</strong> ${mgrs}`;
     }
-  }
-</script>
+
+    function mgrsToLatLon() {
+      if (typeof geodesy === "undefined") {
+        alert("❌ Бібліотека geodesy не завантажена!");
+        return;
+      }
+
+      const mgrsInput = document.getElementById("mgrs").value.trim();
+      if (!mgrsInput) {
+        alert("Введіть координати MGRS!");
+        return;
+      }
+
+      try {
+        const mgrsObj = geodesy.Mgrs.parse(mgrsInput);
+        const utm = mgrsObj.toUtm();
+        const latlon = utm.toLatLonE();
+
+        document.getElementById("result2").innerHTML =
+          `<strong>Latitude:</strong> ${latlon.lat.toFixed(6)}<br>` +
+          `<strong>Longitude:</strong> ${latlon.lon.toFixed(6)}`;
+      } catch (e) {
+        document.getElementById("result2").innerHTML = `❌ Error: ${e.message}`;
+      }
+    }
+  </script>
 
 </body>
 </html>
+
 
 
 
