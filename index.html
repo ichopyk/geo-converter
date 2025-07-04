@@ -4,15 +4,13 @@
   <meta charset="UTF-8" />
   <title>GeoConverter JS</title>
   <style>
-    body { font-family: sans-serif; padding: 2em; }
+    body { font-family: sans-serif; padding: 2em; max-width: 600px; margin: auto; }
     input, button { font-size: 16px; margin: 0.5em 0; width: 100%; padding: 0.5em; }
     .result { margin-top: 1em; background: #f0f0f0; padding: 1em; }
   </style>
 
-  <!-- ✅ geodesy бібліотеки -->
-  <script src="https://unpkg.com/geodesy@2.2.1/latlon-ellipsoidal.js"></script>
-  <script src="https://unpkg.com/geodesy@2.2.1/utm.js"></script>
-  <script src="https://unpkg.com/geodesy@2.2.1/mgrs.js"></script>
+  <!-- ✅ Стабільна, не-модульна версія geodesy -->
+  <script src="https://cdn.jsdelivr.net/gh/chopyk/geodesy-browser@main/geodesy.min.js"></script>
 </head>
 <body>
 
@@ -39,8 +37,7 @@
     const lat = parseFloat(document.getElementById("lat").value);
     const lon = parseFloat(document.getElementById("lon").value);
 
-    const point = new LatLonEllipsoidal(lat, lon); // ✅ правильний клас
-
+    const point = new geodesy.LatLon(lat, lon);
     const utm = point.toUtm();
     const mgrsStr = utm.toMgrs().toString();
 
@@ -52,7 +49,7 @@
   function mgrsToLatLon() {
     const mgrsStr = document.getElementById("mgrs").value.trim();
     try {
-      const mgrsObj = Mgrs.parse(mgrsStr);
+      const mgrsObj = geodesy.Mgrs.parse(mgrsStr);
       const utm = mgrsObj.toUtm();
       const latlon = utm.toLatLonE();
 
@@ -67,6 +64,7 @@
 
 </body>
 </html>
+
 
 
 
