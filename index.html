@@ -39,7 +39,7 @@
     const lat = parseFloat(document.getElementById("lat").value);
     const lon = parseFloat(document.getElementById("lon").value);
 
-    const point = new LatLon(lat, lon);
+    const point = new LatLonEllipsoidal(lat, lon); // ✅ правильний клас
 
     const utm = point.toUtm();
     const mgrsStr = utm.toMgrs().toString();
@@ -67,6 +67,7 @@
 
 </body>
 </html>
+
 
 
 
