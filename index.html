@@ -1,142 +1,93 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>GeoConverter</title>
-    <meta charset="UTF-8">
-    <style>
-      html, body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-      }
-      #map {
-        height: 100%;
-        width: 100%;
-        position: absolute;
-        z-index: 0;
-      }
-      .input-box {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        width: 320px;
-        background: white;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 0 10px rgba(0,0,0,0.3);
-        z-index: 10;
-        font-family: sans-serif;
-        font-size: 14px;
-      }
-      input {
-        width: 100%;
-        margin-bottom: 10px;
-        padding: 5px;
-      }
-      button {
-        padding: 8px 15px;
-        font-size: 14px;
-        cursor: pointer;
-      }
-      h4 {
-        margin-top: 0;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="map"></div>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>GeoConverter JS</title>
+  <style>
+    html, body { margin:0; padding:0; height:100%; }
+    #map { height:100%; width:100%; position:absolute; z-index:0; }
+    .input-box {
+      position:absolute; top:20px; right:20px; width:320px;
+      background:white; padding:15px; border-radius:10px;
+      box-shadow:0 0 10px rgba(0,0,0,0.3); z-index:10;
+      font-family:sans-serif; font-size:14px;
+    }
+    input { width:100%; margin-bottom:10px; padding:5px; }
+    button { padding:8px 15px; font-size:14px; cursor:pointer; }
+    h4 { margin-top:0; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/utm-latlng@1.0.8/UTMLatLngFront.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mgrs@2.1.0/mgrs.min.js"></script>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="input-box">
+    <h4>Lat/Lon ↔ UTM / MGRS</h4>
+    <label>Latitude</label><input type="number" id="lat">
+    <label>Longitude</label><input type="number" id="lon">
+    <button onclick="doGeoTo();">Convert →</button>
+    <div id="geoResult"></div>
+    <hr>
+    <label>UTM Easting</label><input id="utmE" type="number">
+    <label>UTM Northing</label><input id="utmN" type="number">
+    <label>Zone (e.g. 33N)</label><input id="utmZ" type="text">
+    <button onclick="doUtmTo();">UTM → Geo</button>
+    <div id="utmResult"></div>
+    <hr>
+    <label>MGRS</label><input id="mgrsIn" type="text">
+    <button onclick="doMgrsTo();">MGRS → Geo</button>
+    <div id="mgrsResult"></div>
+  </div>
 
-    <div class="input-box">
-      <h4>Geo to UTM/MGRS</h4>
-      <input type="number" id="lat" placeholder="Latitude">
-      <input type="number" id="lon" placeholder="Longitude">
-      <button onclick="convert()">Convert</button>
-      <div id="result" style="margin-top:10px;"></div>
-      <hr>
-      <h4>Reverse Converter</h4>
-      <input type="text" id="mgrsInput" placeholder="MGRS (e.g. 33UXP04)">
-      <input type="number" id="utmEasting" placeholder="UTM Easting">
-      <input type="number" id="utmNorthing" placeholder="UTM Northing">
-      <input type="text" id="utmZone" placeholder="Zone (e.g. 33N)">
-      <button onclick="convertReverse()">Convert</button>
-      <div id="reverseResult" style="margin-top:10px;"></div>
-    </div>
+  <script>
+    // Ініціалізація карти Google (визначити свій API ключ у script src)
+    window.initMap = function() {
+      new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 48.3794, lng: 31.1656 }, zoom: 5
+      });
+    };
 
-    <script>
-      const API_BASE = "https://7f7b-34-118-242-155.ngrok-free.app"; // ← 🔁 ПІДСТАВ СВОЮ АДРЕСУ
+    const utmObj = new UTMLatLng();
 
-      function convert() {
-        const lat = parseFloat(document.getElementById("lat").value);
-        const lon = parseFloat(document.getElementById("lon").value);
-        fetch(API_BASE + "/convert", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lat, lon })
-        })
-          .then(res => res.json())
-          .then(data => {
-            document.getElementById("result").innerHTML = `
-              <strong>UTM:</strong> ${data.utm.easting.toFixed(2)} E, ${data.utm.northing.toFixed(2)} N, Zone ${data.utm.zone}<br>
-              <strong>MGRS:</strong> ${data.mgrs}
-            `;
-          })
-          .catch(() => {
-            document.getElementById("result").innerText = "❌ Error!";
-          });
+    function doGeoTo() {
+      const lat = parseFloat(document.getElementById("lat").value);
+      const lon = parseFloat(document.getElementById("lon").value);
+      const utm = utmObj.convertLatLngToUtm(lat, lon, 0);
+      const mgrsCode = mgrs.forward([lon, lat], 5);
+      document.getElementById("geoResult").innerHTML =
+        `<strong>UTM:</strong> ${utm.Easting.toFixed(2)}, ${utm.Northing.toFixed(2)}, ${utm.ZoneNumber}${utm.ZoneLetter}<br>` +
+        `<strong>MGRS:</strong> ${mgrsCode}`;
+    }
+
+    function doUtmTo() {
+      const e = parseFloat(document.getElementById("utmE").value);
+      const n = parseFloat(document.getElementById("utmN").value);
+      const zone = document.getElementById("utmZ").value.trim();
+      const zoneNum = parseInt(zone);
+      const zoneLet = zone.slice(-1);
+      const ll = utmObj.convertUtmToLatLng(e, n, zoneNum, zoneLet);
+      document.getElementById("utmResult").innerHTML =
+        `<strong>Lat:</strong> ${ll.lat.toFixed(6)}, <strong>Lon:</strong> ${ll.lng.toFixed(6)}`;
+    }
+
+    function doMgrsTo() {
+      const m = document.getElementById("mgrsIn").value.trim();
+      try {
+        const [lon, lat] = mgrs.toPoint(m);
+        document.getElementById("mgrsResult").innerHTML =
+          `<strong>Lat:</strong> ${lat.toFixed(6)}, <strong>Lon:</strong> ${lon.toFixed(6)}`;
+      } catch (e) {
+        document.getElementById("mgrsResult").innerText = '❌ Error: неверний MGRS';
       }
+    }
+  </script>
 
-      function convertReverse() {
-        const mgrs = document.getElementById("mgrsInput").value;
-        const easting = document.getElementById("utmEasting").value;
-        const northing = document.getElementById("utmNorthing").value;
-        const zone = document.getElementById("utmZone").value;
-
-        let data = {};
-        if (mgrs) {
-          data = { mgrs };
-        } else if (easting && northing && zone) {
-          data = {
-            easting: parseFloat(easting),
-            northing: parseFloat(northing),
-            zone: zone
-          };
-        } else {
-          alert("Enter either MGRS or full UTM!");
-          return;
-        }
-
-        fetch(API_BASE + "/reverse", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        })
-          .then(res => res.json())
-          .then(result => {
-            if (result.lat && result.lon) {
-              document.getElementById("reverseResult").innerHTML =
-                `Latitude: ${result.lat.toFixed(6)}<br>Longitude: ${result.lon.toFixed(6)}`;
-            } else {
-              document.getElementById("reverseResult").innerHTML = `❌ Error: ${result.error}`;
-            }
-          })
-          .catch(err => {
-            document.getElementById("reverseResult").innerHTML = "❌ Fetch error";
-          });
-      }
-
-      window.initMap = function () {
-        new google.maps.Map(document.getElementById("map"), {
-          center: { lat: 48.3794, lng: 31.1656 },
-          zoom: 5
-        });
-      };
-    </script>
-
-    <script async
-      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap">
-    </script>
-  </body>
+  <script async
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap">
+  </script>
+</body>
 </html>
+
 
 
 
