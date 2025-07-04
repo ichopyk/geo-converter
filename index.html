@@ -61,78 +61,47 @@
       <button onclick="convertReverse()">Convert</button>
       <div id="reverseResult" style="margin-top:10px;"></div>
     </div>
+    
+<script>
+    function convertReverse() {
+  const mgrs = document.getElementById("mgrsInput").value;
+  const easting = document.getElementById("utmEasting").value;
+  const northing = document.getElementById("utmNorthing").value;
+  const zone = document.getElementById("utmZone").value;
 
-    <script>
-      const API_BASE = "https://40e7-34-118-242-155.ngrok-free.app"; // заміни на нову адресу при потребі
+  let data = {};
+  if (mgrs) {
+    data = { mgrs };
+  } else if (easting && northing && zone) {
+    data = {
+      easting: parseFloat(easting),
+      northing: parseFloat(northing),
+      zone: zone
+    };
+  } else {
+    alert("Enter either MGRS or full UTM!");
+    return;
+  }
 
-      function convert() {
-        const lat = parseFloat(document.getElementById("lat").value);
-        const lon = parseFloat(document.getElementById("lon").value);
-        fetch(API_BASE + "/convert", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lat, lon })
-        })
-        .then(res => res.json())
-        .then(data => {
-          document.getElementById("result").innerHTML = `
-            <strong>UTM:</strong> ${data.utm.easting.toFixed(2)} E, ${data.utm.northing.toFixed(2)} N, Zone ${data.utm.zone}<br>
-            <strong>MGRS:</strong> ${data.mgrs}
-          `;
-        })
-        .catch(() => {
-          document.getElementById("result").innerText = "❌ Error!";
-        });
+  fetch("https://40e7-34-118-242-155.ngrok-free.app/reverse", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+    .then(res => res.json())
+    .then(result => {
+      if (result.lat && result.lon) {
+        document.getElementById("reverseResult").innerHTML =
+          `Latitude: ${result.lat.toFixed(6)}<br>Longitude: ${result.lon.toFixed(6)}`;
+      } else {
+        document.getElementById("reverseResult").innerHTML = `❌ Error: ${result.error}`;
       }
-
-      function convertReverse() {
-        const mgrs = document.getElementById("mgrsInput").value.trim();
-        const easting = document.getElementById("utmEasting").value;
-        const northing = document.getElementById("utmNorthing").value;
-        const zone = document.getElementById("utmZone").value.trim();
-
-        let data = {};
-        if (mgrs) {
-          data = { mgrs };
-        } else if (easting && northing && zone) {
-          data = {
-            easting: parseFloat(easting),
-            northing: parseFloat(northing),
-            zone
-          };
-        } else {
-          alert("Please enter either MGRS or UTM (easting/northing/zone)");
-          return;
-        }
-
-        fetch(API_BASE + "/reverse", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        })
-        .then(res => res.json())
-        .then(data => {
-          if (data.lat && data.lon) {
-            document.getElementById("reverseResult").innerHTML = `
-              <strong>Latitude:</strong> ${data.lat.toFixed(6)}<br>
-              <strong>Longitude:</strong> ${data.lon.toFixed(6)}
-            `;
-          } else {
-            document.getElementById("reverseResult").innerText = "❌ Error: " + (data.error || "Unknown");
-          }
-        })
-        .catch(() => {
-          document.getElementById("reverseResult").innerText = "❌ Error!";
-        });
-      }
-
-      function initMap() {
-        new google.maps.Map(document.getElementById("map"), {
-          center: { lat: 48.3794, lng: 31.1656 },
-          zoom: 5
-        });
-      }
-    </script>
+    })
+    .catch(err => {
+      document.getElementById("reverseResult").innerHTML = "❌ Fetch error";
+    });
+}
+<script/>
     <script async
       <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap" async defer></script>
     </script>
