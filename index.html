@@ -2,53 +2,72 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8" />
-  <title>MGRS Converter</title>
+  <title>GeoConverter JS</title>
   <style>
     body { font-family: sans-serif; padding: 2em; }
     input, button { font-size: 16px; margin: 0.5em 0; width: 100%; padding: 0.5em; }
     .result { margin-top: 1em; background: #f0f0f0; padding: 1em; }
   </style>
-  <!-- ✅ ПРАЦЮЮЧА версія mgrs.js -->
-  <script src="https://unpkg.com/mgrs@1.0.0/mgrs.js"></script>
+
+  <!-- ✅ geodesy бібліотеки -->
+  <script src="https://unpkg.com/geodesy@2.2.1/latlon-ellipsoidal.js"></script>
+  <script src="https://unpkg.com/geodesy@2.2.1/utm.js"></script>
+  <script src="https://unpkg.com/geodesy@2.2.1/mgrs.js"></script>
 </head>
 <body>
 
-<h2>Lat/Lon → MGRS</h2>
+<h2>Lat/Lon → UTM / MGRS</h2>
 <label>Latitude:</label>
 <input type="number" step="any" id="lat">
 <label>Longitude:</label>
 <input type="number" step="any" id="lon">
-<button onclick="latLonToMgrs()">Convert → MGRS</button>
+<button onclick="latLonConvert()">Convert</button>
+
+<div class="result" id="result1"></div>
+
+<hr>
 
 <h2>MGRS → Lat/Lon</h2>
 <label>MGRS:</label>
 <input type="text" id="mgrs">
-<button onclick="mgrsToLatLon()">Convert → Lat/Lon</button>
+<button onclick="mgrsToLatLon()">Convert</button>
 
-<div class="result" id="output"></div>
+<div class="result" id="result2"></div>
 
 <script>
-  function latLonToMgrs() {
+  function latLonConvert() {
     const lat = parseFloat(document.getElementById("lat").value);
     const lon = parseFloat(document.getElementById("lon").value);
-    const mgrsStr = mgrs.forward([lon, lat], 5);
-    document.getElementById("output").innerHTML = `<strong>MGRS:</strong> ${mgrsStr}`;
+
+    const point = new LatLon(lat, lon);
+
+    const utm = point.toUtm();
+    const mgrsStr = utm.toMgrs().toString();
+
+    document.getElementById("result1").innerHTML =
+      `<strong>UTM:</strong> ${utm.zone}${utm.hemisphere} ${utm.easting.toFixed(2)} ${utm.northing.toFixed(2)}<br>` +
+      `<strong>MGRS:</strong> ${mgrsStr}`;
   }
 
   function mgrsToLatLon() {
     const mgrsStr = document.getElementById("mgrs").value.trim();
     try {
-      const [lon, lat] = mgrs.toPoint(mgrsStr);
-      document.getElementById("output").innerHTML =
-        `<strong>Latitude:</strong> ${lat.toFixed(6)}<br><strong>Longitude:</strong> ${lon.toFixed(6)}`;
+      const mgrsObj = Mgrs.parse(mgrsStr);
+      const utm = mgrsObj.toUtm();
+      const latlon = utm.toLatLonE();
+
+      document.getElementById("result2").innerHTML =
+        `<strong>Latitude:</strong> ${latlon.lat.toFixed(6)}<br>` +
+        `<strong>Longitude:</strong> ${latlon.lon.toFixed(6)}`;
     } catch (e) {
-      document.getElementById("output").innerHTML = `❌ Error: ${e.message}`;
+      document.getElementById("result2").innerHTML = `❌ Error: ${e.message}`;
     }
   }
 </script>
 
 </body>
 </html>
+
 
 
 
