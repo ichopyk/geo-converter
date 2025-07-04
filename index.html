@@ -1,97 +1,55 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-  <meta charset="UTF-8">
-  <title>GeoConverter JS</title>
+  <meta charset="UTF-8" />
+  <title>MGRS Converter</title>
   <style>
-    html, body { margin:0; padding:0; height:100%; }
-    #map { height:100%; width:100%; position:absolute; z-index:0; }
-    .input-box {
-      position:absolute; top:20px; right:20px; width:320px;
-      background:white; padding:15px; border-radius:10px;
-      box-shadow:0 0 10px rgba(0,0,0,0.3); z-index:10;
-      font-family:sans-serif; font-size:14px;
-    }
-    input { width:100%; margin-bottom:10px; padding:5px; }
-    button { padding:8px 15px; font-size:14px; cursor:pointer; }
-    h4 { margin-top:0; }
+    body { font-family: sans-serif; padding: 2em; }
+    input, button { font-size: 16px; margin: 0.5em 0; width: 100%; padding: 0.5em; }
+    .result { margin-top: 1em; background: #f0f0f0; padding: 1em; }
   </style>
-
-  <!-- ✅ Спочатку підключаємо бібліотеки -->
-  <script src="https://cdn.jsdelivr.net/npm/utm-latlng@1.0.8/UTMLatLngFront.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mgrs@2.1.0/mgrs.min.js"></script>
+  <!-- ✅ ПРАЦЮЮЧА версія mgrs.js -->
+  <script src="https://unpkg.com/mgrs@1.0.0/mgrs.js"></script>
 </head>
 <body>
-  <div id="map"></div>
 
-  <div class="input-box">
-    <h4>Lat/Lon ↔ UTM / MGRS</h4>
-    <label>Latitude</label><input type="number" id="lat">
-    <label>Longitude</label><input type="number" id="lon">
-    <button onclick="doGeoTo();">Convert →</button>
-    <div id="geoResult"></div>
-    <hr>
-    <label>UTM Easting</label><input id="utmE" type="number">
-    <label>UTM Northing</label><input id="utmN" type="number">
-    <label>Zone (e.g. 33N)</label><input id="utmZ" type="text">
-    <button onclick="doUtmTo();">UTM → Geo</button>
-    <div id="utmResult"></div>
-    <hr>
-    <label>MGRS</label><input id="mgrsIn" type="text">
-    <button onclick="doMgrsTo();">MGRS → Geo</button>
-    <div id="mgrsResult"></div>
-  </div>
+<h2>Lat/Lon → MGRS</h2>
+<label>Latitude:</label>
+<input type="number" step="any" id="lat">
+<label>Longitude:</label>
+<input type="number" step="any" id="lon">
+<button onclick="latLonToMgrs()">Convert → MGRS</button>
 
-  <!-- ✅ Логіка – після бібліотек -->
-  <script>
-    const utmObj = new UTMLatLng();
+<h2>MGRS → Lat/Lon</h2>
+<label>MGRS:</label>
+<input type="text" id="mgrs">
+<button onclick="mgrsToLatLon()">Convert → Lat/Lon</button>
 
-    function doGeoTo() {
-      const lat = parseFloat(document.getElementById("lat").value);
-      const lon = parseFloat(document.getElementById("lon").value);
-      const utm = utmObj.convertLatLngToUtm(lat, lon, 0);
-      const mgrsCode = mgrs.forward([lon, lat], 5);
-      document.getElementById("geoResult").innerHTML =
-        `<strong>UTM:</strong> ${utm.Easting.toFixed(2)}, ${utm.Northing.toFixed(2)}, ${utm.ZoneNumber}${utm.ZoneLetter}<br>` +
-        `<strong>MGRS:</strong> ${mgrsCode}`;
+<div class="result" id="output"></div>
+
+<script>
+  function latLonToMgrs() {
+    const lat = parseFloat(document.getElementById("lat").value);
+    const lon = parseFloat(document.getElementById("lon").value);
+    const mgrsStr = mgrs.forward([lon, lat], 5);
+    document.getElementById("output").innerHTML = `<strong>MGRS:</strong> ${mgrsStr}`;
+  }
+
+  function mgrsToLatLon() {
+    const mgrsStr = document.getElementById("mgrs").value.trim();
+    try {
+      const [lon, lat] = mgrs.toPoint(mgrsStr);
+      document.getElementById("output").innerHTML =
+        `<strong>Latitude:</strong> ${lat.toFixed(6)}<br><strong>Longitude:</strong> ${lon.toFixed(6)}`;
+    } catch (e) {
+      document.getElementById("output").innerHTML = `❌ Error: ${e.message}`;
     }
+  }
+</script>
 
-    function doUtmTo() {
-      const e = parseFloat(document.getElementById("utmE").value);
-      const n = parseFloat(document.getElementById("utmN").value);
-      const zone = document.getElementById("utmZ").value.trim();
-      const zoneNum = parseInt(zone);
-      const zoneLet = zone.slice(-1);
-      const ll = utmObj.convertUtmToLatLng(e, n, zoneNum, zoneLet);
-      document.getElementById("utmResult").innerHTML =
-        `<strong>Lat:</strong> ${ll.lat.toFixed(6)}, <strong>Lon:</strong> ${ll.lng.toFixed(6)}`;
-    }
-
-    function doMgrsTo() {
-      const m = document.getElementById("mgrsIn").value.trim();
-      try {
-        const [lon, lat] = mgrs.toPoint(m);
-        document.getElementById("mgrsResult").innerHTML =
-          `<strong>Lat:</strong> ${lat.toFixed(6)}, <strong>Lon:</strong> ${lon.toFixed(6)}`;
-      } catch (e) {
-        document.getElementById("mgrsResult").innerText = '❌ Error: неверний MGRS';
-      }
-    }
-
-    // Карта Google
-    window.initMap = function() {
-      new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 48.3794, lng: 31.1656 }, zoom: 5
-      });
-    };
-  </script>
-
-  <!-- ✅ Після всіх скриптів – підключаємо карту -->
-  <script async
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap">
-  </script>
 </body>
 </html>
+
 
 
 
