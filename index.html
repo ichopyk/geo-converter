@@ -16,11 +16,14 @@
     button { padding:8px 15px; font-size:14px; cursor:pointer; }
     h4 { margin-top:0; }
   </style>
+
+  <!-- ✅ Спочатку підключаємо бібліотеки -->
   <script src="https://cdn.jsdelivr.net/npm/utm-latlng@1.0.8/UTMLatLngFront.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mgrs@2.1.0/mgrs.min.js"></script>
 </head>
 <body>
   <div id="map"></div>
+
   <div class="input-box">
     <h4>Lat/Lon ↔ UTM / MGRS</h4>
     <label>Latitude</label><input type="number" id="lat">
@@ -39,14 +42,8 @@
     <div id="mgrsResult"></div>
   </div>
 
+  <!-- ✅ Логіка – після бібліотек -->
   <script>
-    // Ініціалізація карти Google (визначити свій API ключ у script src)
-    window.initMap = function() {
-      new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 48.3794, lng: 31.1656 }, zoom: 5
-      });
-    };
-
     const utmObj = new UTMLatLng();
 
     function doGeoTo() {
@@ -80,13 +77,22 @@
         document.getElementById("mgrsResult").innerText = '❌ Error: неверний MGRS';
       }
     }
+
+    // Карта Google
+    window.initMap = function() {
+      new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 48.3794, lng: 31.1656 }, zoom: 5
+      });
+    };
   </script>
 
+  <!-- ✅ Після всіх скриптів – підключаємо карту -->
   <script async
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap">
   </script>
 </body>
 </html>
+
 
 
 
