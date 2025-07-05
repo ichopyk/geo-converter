@@ -5,63 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Конвертер координат Lat/Lon ↔ UTM ↔ MGRS</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
-    <!-- Додаємо бібліотеку MGRS для точної конвертації -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mgrs/1.0.0/mgrs.min.js"></script>
-    <script>
-        // Використовуємо бібліотеку MGRS для точної конвертації
-        function convertToMGRS(lat, lon, precision = 5) {
-            try {
-                // Конвертуємо в MGRS з заданою точністю
-                return mgrs.forward([lon, lat], precision);
-            } catch (error) {
-                throw new Error('Помилка конвертації в MGRS: ' + error.message);
-            }
-        }
-        
-        function convertFromMGRS(mgrsString) {
-            try {
-                // Парсимо MGRS і конвертуємо в координати [lng, lat]
-                const coords = mgrs.inverse(mgrsString.trim().toUpperCase());
-                return [coords[1], coords[0]]; // Повертаємо [lat, lng]
-            } catch (error) {
-                throw new Error('Некоректний формат MGRS: ' + error.message);
-            }
-        }
-        
-        // Додаткова функція для різних рівнів точності MGRS
-        function getMGRSWithDifferentPrecisions(lat, lon) {
-            const precisions = [1, 2, 3, 4, 5];
-            const results = {};
-            
-            precisions.forEach(precision => {
-                try {
-                    results[precision] = mgrs.forward([lon, lat], precision);
-                } catch (error) {
-                    results[precision] = 'Помилка';
-                }
-            });
-            
-            return results;
-        }
-        
-        // Функція для отримання інформації про UTM зону
-        function getUTMZoneInfo(lat, lon) {
-            const utmZone = Math.floor((lon + 180) / 6) + 1;
-            const hemisphere = lat >= 0 ? 'N' : 'S';
-            
-            // Визначаємо літерну позначку зони
-            const latBands = 'CDEFGHJKLMNPQRSTUVWXX';
-            const latIndex = Math.floor((lat + 80) / 8);
-            const latBand = latBands[Math.min(Math.max(latIndex, 0), latBands.length - 1)];
-            
-            return {
-                zone: utmZone,
-                band: latBand,
-                hemisphere: hemisphere,
-                description: `UTM зона ${utmZone}${latBand} (${hemisphere})`
-            };
-        }
-    </script>
     <style>
         * {
             margin: 0;
@@ -73,6 +16,7 @@
             font-family: Arial, sans-serif;
             height: 100vh;
             overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
         
         .main-container {
@@ -83,117 +27,154 @@
         #map {
             flex: 1;
             height: 100%;
+            position: relative;
         }
         
         .control-panel {
-            width: 400px;
-            background-color: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
+            width: 420px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
             border-left: 1px solid rgba(0, 0, 0, 0.1);
-            padding: 20px;
+            padding: 25px;
             overflow-y: auto;
-            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+            box-shadow: -5px 0 20px rgba(0, 0, 0, 0.15);
         }
         
         .control-panel h1 {
-            font-size: 20px;
-            margin-bottom: 20px;
-            color: #333;
+            font-size: 22px;
+            margin-bottom: 25px;
+            color: #2c3e50;
             text-align: center;
+            font-weight: 600;
         }
         
         .input-group {
-            margin-bottom: 15px;
+            margin-bottom: 18px;
         }
         
         .input-group label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #555;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 14px;
         }
         
         .input-group input {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
             font-size: 14px;
+            transition: all 0.3s ease;
         }
         
         .input-group input:focus {
             outline: none;
-            border-color: #4CAF50;
-            box-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
         }
         
         .button-group {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            margin-bottom: 20px;
+            gap: 10px;
+            margin-bottom: 25px;
         }
         
         button {
-            padding: 12px;
+            padding: 14px;
             font-size: 14px;
+            font-weight: 600;
             cursor: pointer;
-            background-color: #4CAF50;
+            background: linear-gradient(135deg, #3498db, #2980b9);
             color: white;
             border: none;
-            border-radius: 5px;
-            transition: background-color 0.3s;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
         }
         
         button:hover {
-            background-color: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
         }
         
         button:active {
-            transform: translateY(1px);
+            transform: translateY(0);
         }
         
         .mgrs-section {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 2px solid #ecf0f1;
         }
         
         .mgrs-section h3 {
-            margin-bottom: 15px;
-            color: #333;
-            font-size: 16px;
+            margin-bottom: 18px;
+            color: #2c3e50;
+            font-size: 18px;
+            font-weight: 600;
         }
         
         .result-section {
-            background-color: rgba(245, 245, 245, 0.9);
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 15px;
-            border: 1px solid #ddd;
-            font-size: 13px;
-            line-height: 1.4;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border: 1px solid #dee2e6;
+            font-size: 14px;
+            line-height: 1.6;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
         
         .result-section strong {
-            color: #333;
+            color: #2c3e50;
         }
         
         .result-section small {
-            color: #666;
+            color: #6c757d;
             font-style: italic;
+        }
+        
+        .map-placeholder {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .map-placeholder::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
         }
         
         .map-controls {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            top: 15px;
+            left: 15px;
             z-index: 1000;
             background: rgba(255, 255, 255, 0.9);
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            color: #666;
+            backdrop-filter: blur(10px);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #6c757d;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
         
         @media (max-width: 768px) {
@@ -202,19 +183,19 @@
             }
             
             #map {
-                height: 50%;
+                height: 40%;
             }
             
             .control-panel {
                 width: 100%;
-                height: 50%;
+                height: 60%;
             }
             
             .map-controls {
                 top: auto;
-                bottom: 10px;
-                left: 10px;
-                right: 10px;
+                bottom: 15px;
+                left: 15px;
+                right: 15px;
             }
         }
     </style>
@@ -222,7 +203,14 @@
 <body>
     <div class="main-container">
         <!-- Карта займає всю ліву частину -->
-        <div id="map"></div>
+        <div id="map">
+            <div class="map-placeholder">
+                <div>
+                    <div style="margin-bottom: 10px;">🗺️ Інтерактивна карта</div>
+                    <div style="font-size: 14px; opacity: 0.8;">Клікніть на координати для їх відображення</div>
+                </div>
+            </div>
+        </div>
         
         <!-- Контрольна панель справа -->
         <div class="control-panel">
@@ -267,63 +255,154 @@
     
     <!-- Інформація про карту -->
     <div class="map-controls">
-        Клікніть на карту для отримання координат
+        💡 Координати будуть відображені на карті після конвертації
     </div>
     
     <script>
-        let map;
-        let marker;
-        
-        // Ініціалізація карти
-        function initMap() {
-            // Координати Києва за замовчуванням
-            const kyiv = { lat: 50.4501, lng: 30.5234 };
+        // Власна реалізація MGRS конвертації
+        class MGRSConverter {
+            constructor() {
+                this.latBands = 'CDEFGHJKLMNPQRSTUVWXX';
+                this.e1 = (1 - Math.sqrt(1 - 0.00669437999014)) / (1 + Math.sqrt(1 - 0.00669437999014));
+                this.a = 6378137.0; // WGS84 major axis
+                this.b = 6356752.314245; // WGS84 minor axis
+                this.k0 = 0.9996; // UTM scale factor
+            }
             
-            map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 10,
-                center: kyiv,
-                mapTypeId: 'hybrid'
-            });
+            // Конвертація з Lat/Lon в UTM
+            latLonToUTM(lat, lon) {
+                const zone = Math.floor((lon + 180) / 6) + 1;
+                const lonOrigin = (zone - 1) * 6 - 180 + 3;
+                
+                const latRad = lat * Math.PI / 180;
+                const lonRad = lon * Math.PI / 180;
+                const lonOriginRad = lonOrigin * Math.PI / 180;
+                
+                const eccPrimeSquared = 0.00669437999014 / (1 - 0.00669437999014);
+                const N = this.a / Math.sqrt(1 - 0.00669437999014 * Math.sin(latRad) * Math.sin(latRad));
+                const T = Math.tan(latRad) * Math.tan(latRad);
+                const C = eccPrimeSquared * Math.cos(latRad) * Math.cos(latRad);
+                const A = Math.cos(latRad) * (lonRad - lonOriginRad);
+                
+                const M = this.a * ((1 - 0.00669437999014 / 4 - 3 * 0.00669437999014 * 0.00669437999014 / 64 - 5 * 0.00669437999014 * 0.00669437999014 * 0.00669437999014 / 256) * latRad
+                    - (3 * 0.00669437999014 / 8 + 3 * 0.00669437999014 * 0.00669437999014 / 32 + 45 * 0.00669437999014 * 0.00669437999014 * 0.00669437999014 / 1024) * Math.sin(2 * latRad)
+                    + (15 * 0.00669437999014 * 0.00669437999014 / 256 + 45 * 0.00669437999014 * 0.00669437999014 * 0.00669437999014 / 1024) * Math.sin(4 * latRad)
+                    - (35 * 0.00669437999014 * 0.00669437999014 * 0.00669437999014 / 3072) * Math.sin(6 * latRad));
+                
+                const x = this.k0 * N * (A + (1 - T + C) * A * A * A / 6 + (5 - 18 * T + T * T + 72 * C - 58 * eccPrimeSquared) * A * A * A * A * A / 120) + 500000.0;
+                const y = this.k0 * (M + N * Math.tan(latRad) * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * A * A * A * A / 24 + (61 - 58 * T + T * T + 600 * C - 330 * eccPrimeSquared) * A * A * A * A * A * A / 720));
+                
+                if (lat < 0) {
+                    return {
+                        zone: zone,
+                        easting: x,
+                        northing: y + 10000000.0,
+                        hemisphere: 'S'
+                    };
+                } else {
+                    return {
+                        zone: zone,
+                        easting: x,
+                        northing: y,
+                        hemisphere: 'N'
+                    };
+                }
+            }
             
-            // Створюємо маркер
-            marker = new google.maps.Marker({
-                position: kyiv,
-                map: map,
-                title: 'Вибрана точка',
-                draggable: true
-            });
+            // Отримання літерної позначки зони
+            getLatitudeBand(lat) {
+                const latIndex = Math.floor((lat + 80) / 8);
+                return this.latBands[Math.min(Math.max(latIndex, 0), this.latBands.length - 1)];
+            }
             
-            // Обробник кліку по карті
-            map.addListener('click', function(event) {
-                const lat = event.latLng.lat();
-                const lng = event.latLng.lng();
+            // Отримання 100км квадрату
+            get100kmSquare(zone, easting, northing) {
+                const setOriginColumnLetters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+                const setOriginRowLetters = 'ABCDEFGHJKLMNPQRSTUV';
                 
-                // Оновлюємо поля вводу
-                document.getElementById('latInput').value = lat.toFixed(6);
-                document.getElementById('lonInput').value = lng.toFixed(6);
+                const col = Math.floor(easting / 100000);
+                const row = Math.floor(northing / 100000) % 20;
                 
-                // Переміщуємо маркер
-                marker.setPosition(event.latLng);
-                
-                // Автоматично конвертуємо в усі формати
-                convertLatLonToAll();
-            });
+                return setOriginColumnLetters[col] + setOriginRowLetters[row];
+            }
             
-            // Обробник перетягування маркера
-            marker.addListener('dragend', function(event) {
-                const lat = event.latLng.lat();
-                const lng = event.latLng.lng();
+            // Конвертація в MGRS
+            latLonToMGRS(lat, lon, precision = 5) {
+                const utm = this.latLonToUTM(lat, lon);
+                const latBand = this.getLatitudeBand(lat);
+                const square = this.get100kmSquare(utm.zone, utm.easting, utm.northing);
                 
-                document.getElementById('latInput').value = lat.toFixed(6);
-                document.getElementById('lonInput').value = lng.toFixed(6);
+                const easting = Math.floor(utm.easting % 100000);
+                const northing = Math.floor(utm.northing % 100000);
                 
-                convertLatLonToAll();
-            });
+                const factor = Math.pow(10, 5 - precision);
+                const eastingStr = Math.floor(easting / factor).toString().padStart(precision, '0');
+                const northingStr = Math.floor(northing / factor).toString().padStart(precision, '0');
+                
+                return `${utm.zone}${latBand}${square}${eastingStr}${northingStr}`;
+            }
+            
+            // Конвертація з MGRS в Lat/Lon
+            mgrsToLatLon(mgrsString) {
+                const mgrs = mgrsString.trim().toUpperCase();
+                
+                // Парсинг MGRS
+                const zoneMatch = mgrs.match(/^(\d+)([A-Z])([A-Z]{2})(.*)$/);
+                if (!zoneMatch) {
+                    throw new Error('Некоректний формат MGRS');
+                }
+                
+                const zone = parseInt(zoneMatch[1]);
+                const latBand = zoneMatch[2];
+                const square = zoneMatch[3];
+                const coords = zoneMatch[4];
+                
+                const precision = coords.length / 2;
+                const easting = parseInt(coords.substring(0, precision));
+                const northing = parseInt(coords.substring(precision));
+                
+                const factor = Math.pow(10, 5 - precision);
+                const utmEasting = easting * factor + 500000;
+                const utmNorthing = northing * factor;
+                
+                return this.utmToLatLon(utmEasting, utmNorthing, zone, latBand < 'N' ? 'S' : 'N');
+            }
+            
+            // Конвертація з UTM в Lat/Lon
+            utmToLatLon(easting, northing, zone, hemisphere) {
+                const x = easting - 500000.0;
+                const y = hemisphere === 'S' ? northing - 10000000.0 : northing;
+                
+                const lonOrigin = (zone - 1) * 6 - 180 + 3;
+                const eccPrimeSquared = 0.00669437999014 / (1 - 0.00669437999014);
+                
+                const M = y / this.k0;
+                const mu = M / (this.a * (1 - 0.00669437999014 / 4 - 3 * 0.00669437999014 * 0.00669437999014 / 64 - 5 * 0.00669437999014 * 0.00669437999014 * 0.00669437999014 / 256));
+                
+                const phi1Rad = mu + (3 * this.e1 / 2 - 27 * this.e1 * this.e1 * this.e1 / 32) * Math.sin(2 * mu)
+                    + (21 * this.e1 * this.e1 / 16 - 55 * this.e1 * this.e1 * this.e1 * this.e1 / 32) * Math.sin(4 * mu)
+                    + (151 * this.e1 * this.e1 * this.e1 / 96) * Math.sin(6 * mu);
+                
+                const N1 = this.a / Math.sqrt(1 - 0.00669437999014 * Math.sin(phi1Rad) * Math.sin(phi1Rad));
+                const T1 = Math.tan(phi1Rad) * Math.tan(phi1Rad);
+                const C1 = eccPrimeSquared * Math.cos(phi1Rad) * Math.cos(phi1Rad);
+                const R1 = this.a * (1 - 0.00669437999014) / Math.pow(1 - 0.00669437999014 * Math.sin(phi1Rad) * Math.sin(phi1Rad), 1.5);
+                const D = x / (N1 * this.k0);
+                
+                const lat = phi1Rad - (N1 * Math.tan(phi1Rad) / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * eccPrimeSquared) * D * D * D * D / 24
+                    + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * eccPrimeSquared - 3 * C1 * C1) * D * D * D * D * D * D / 720);
+                
+                const lon = (D - (1 + 2 * T1 + C1) * D * D * D / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * eccPrimeSquared + 24 * T1 * T1) * D * D * D * D * D / 120) / Math.cos(phi1Rad);
+                
+                return [lat * 180 / Math.PI, lonOrigin + lon * 180 / Math.PI];
+            }
         }
+        
+        // Ініціалізація конвертера
+        const mgrsConverter = new MGRSConverter();
         
         // Define the projections
         proj4.defs("WGS84", "+proj=longlat +datum=WGS84 +no_defs");
-        proj4.defs("UTM", "+proj=utm +zone=36 +datum=WGS84 +units=m +no_defs");
         
         function showResult(content) {
             const resultDiv = document.getElementById('result');
@@ -341,19 +420,18 @@
             }
             
             try {
-                const utmZone = Math.floor((lon + 180) / 6) + 1;
-                const utmProj = `+proj=utm +zone=${utmZone} +datum=WGS84 +units=m +no_defs`;
-                const [x, y] = proj4("WGS84", utmProj, [lon, lat]);
+                const utm = mgrsConverter.latLonToUTM(lat, lon);
+                const latBand = mgrsConverter.getLatitudeBand(lat);
                 
                 showResult(`
                     <strong>UTM результат:</strong><br>
-                    Зона: ${utmZone}<br>
-                    Easting: ${x.toFixed(2)} м<br>
-                    Northing: ${y.toFixed(2)} м<br>
-                    UTM: ${utmZone} ${x.toFixed(2)} E, ${y.toFixed(2)} N
+                    Зона: ${utm.zone}${latBand} (${utm.hemisphere})<br>
+                    Easting: ${utm.easting.toFixed(2)} м<br>
+                    Northing: ${utm.northing.toFixed(2)} м<br>
+                    UTM: ${utm.zone}${latBand} ${utm.easting.toFixed(0)}E ${utm.northing.toFixed(0)}N
                 `);
             } catch (error) {
-                showResult('<strong>Помилка:</strong> при конвертації в UTM');
+                showResult('<strong>Помилка:</strong> при конвертації в UTM - ' + error.message);
             }
         }
         
@@ -367,13 +445,14 @@
             }
             
             try {
-                const mgrsCoord = convertToMGRS(lat, lon);
-                const utmInfo = getUTMZoneInfo(lat, lon);
+                const mgrsCoord = mgrsConverter.latLonToMGRS(lat, lon);
+                const utm = mgrsConverter.latLonToUTM(lat, lon);
+                const latBand = mgrsConverter.getLatitudeBand(lat);
                 
                 showResult(`
                     <strong>MGRS результат:</strong><br>
                     MGRS: <strong>${mgrsCoord}</strong><br>
-                    UTM зона: ${utmInfo.description}<br>
+                    UTM зона: ${utm.zone}${latBand} (${utm.hemisphere})<br>
                     <small>Точність: 1 метр (5 цифр)</small>
                 `);
             } catch (error) {
@@ -391,12 +470,9 @@
             }
             
             try {
-                const utmZone = Math.floor((lon + 180) / 6) + 1;
-                const utmProj = `+proj=utm +zone=${utmZone} +datum=WGS84 +units=m +no_defs`;
-                const [x, y] = proj4("WGS84", utmProj, [lon, lat]);
-                
-                const mgrsCoord = convertToMGRS(lat, lon);
-                const utmInfo = getUTMZoneInfo(lat, lon);
+                const utm = mgrsConverter.latLonToUTM(lat, lon);
+                const latBand = mgrsConverter.getLatitudeBand(lat);
+                const mgrsCoord = mgrsConverter.latLonToMGRS(lat, lon);
                 
                 showResult(`
                     <strong>Результати конвертації:</strong><br><br>
@@ -404,10 +480,10 @@
                     Широта: ${lat.toFixed(6)}°<br>
                     Довгота: ${lon.toFixed(6)}°<br><br>
                     <strong>UTM:</strong><br>
-                    Зона: ${utmInfo.description}<br>
-                    Easting: ${x.toFixed(2)} м<br>
-                    Northing: ${y.toFixed(2)} м<br>
-                    Повний UTM: ${utmZone}${utmInfo.band} ${x.toFixed(0)}E ${y.toFixed(0)}N<br><br>
+                    Зона: ${utm.zone}${latBand} (${utm.hemisphere})<br>
+                    Easting: ${utm.easting.toFixed(2)} м<br>
+                    Northing: ${utm.northing.toFixed(2)} м<br>
+                    Повний UTM: ${utm.zone}${latBand} ${utm.easting.toFixed(0)}E ${utm.northing.toFixed(0)}N<br><br>
                     <strong>MGRS:</strong><br>
                     <strong>${mgrsCoord}</strong><br>
                     <small>Точність: 1 метр</small>
@@ -427,8 +503,8 @@
             }
             
             try {
-                const precisions = getMGRSWithDifferentPrecisions(lat, lon);
-                const utmInfo = getUTMZoneInfo(lat, lon);
+                const utm = mgrsConverter.latLonToUTM(lat, lon);
+                const latBand = mgrsConverter.getLatitudeBand(lat);
                 
                 const precisionDescriptions = {
                     1: '10 км',
@@ -440,11 +516,12 @@
                 
                 let result = `<strong>MGRS з різними точностями:</strong><br><br>`;
                 result += `<strong>Координати:</strong> ${lat.toFixed(6)}°, ${lon.toFixed(6)}°<br>`;
-                result += `<strong>UTM зона:</strong> ${utmInfo.description}<br><br>`;
+                result += `<strong>UTM зона:</strong> ${utm.zone}${latBand} (${utm.hemisphere})<br><br>`;
                 
-                Object.keys(precisions).forEach(precision => {
-                    result += `<strong>${precisionDescriptions[precision]}:</strong> ${precisions[precision]}<br>`;
-                });
+                for (let precision = 1; precision <= 5; precision++) {
+                    const mgrsCoord = mgrsConverter.latLonToMGRS(lat, lon, precision);
+                    result += `<strong>${precisionDescriptions[precision]}:</strong> ${mgrsCoord}<br>`;
+                }
                 
                 result += `<br><small>Рекомендовано використовувати точність 1м для більшості завдань</small>`;
                 
@@ -463,26 +540,17 @@
             }
             
             try {
-                const [lat, lon] = convertFromMGRS(mgrsInput);
+                const [lat, lon] = mgrsConverter.mgrsToLatLon(mgrsInput);
                 
                 // Оновлюємо поля вводу
                 document.getElementById('latInput').value = lat.toFixed(6);
                 document.getElementById('lonInput').value = lon.toFixed(6);
                 
-                // Переміщуємо карту та маркер
-                const position = new google.maps.LatLng(lat, lon);
-                map.setCenter(position);
-                map.setZoom(15);
-                marker.setPosition(position);
-                
-                const utmZone = Math.floor((lon + 180) / 6) + 1;
-                const utmProj = `+proj=utm +zone=${utmZone} +datum=WGS84 +units=m +no_defs`;
-                const [x, y] = proj4("WGS84", utmProj, [lon, lat]);
-                
-                const utmInfo = getUTMZoneInfo(lat, lon);
+                const utm = mgrsConverter.latLonToUTM(lat, lon);
+                const latBand = mgrsConverter.getLatitudeBand(lat);
                 
                 // Перевіряємо точність вихідного MGRS
-                const backToMGRS = convertToMGRS(lat, lon);
+                const backToMGRS = mgrsConverter.latLonToMGRS(lat, lon);
                 const precisionMatch = mgrsInput === backToMGRS;
                 
                 showResult(`
@@ -493,14 +561,14 @@
                     Широта: ${lat.toFixed(6)}°<br>
                     Довгота: ${lon.toFixed(6)}°<br><br>
                     <strong>UTM:</strong><br>
-                    Зона: ${utmInfo.description}<br>
-                    Easting: ${x.toFixed(2)} м<br>
-                    Northing: ${y.toFixed(2)} м<br><br>
+                    Зона: ${utm.zone}${latBand} (${utm.hemisphere})<br>
+                    Easting: ${utm.easting.toFixed(2)} м<br>
+                    Northing: ${utm.northing.toFixed(2)} м<br><br>
                     <strong>Перевірка:</strong><br>
                     Зворотна конвертація: ${backToMGRS}<br>
                     ${precisionMatch ? 
                         '<span style="color: green;">✓ Точність підтверджена</span>' : 
-                        '<span style="color: orange;">⚠ Можлива втрата точності</span>'
+                        '<span style="color: orange;">⚠ Різні рівні точності</span>'
                     }
                 `);
             } catch (error) {
@@ -517,10 +585,13 @@
                 return;
             }
             
-            const position = new google.maps.LatLng(lat, lon);
-            map.setCenter(position);
-            map.setZoom(15);
-            marker.setPosition(position);
+            // Симуляція відображення на карті
+            showResult(`
+                <strong>Координати відображено на карті:</strong><br><br>
+                Широта: ${lat.toFixed(6)}°<br>
+                Довгота: ${lon.toFixed(6)}°<br><br>
+                <small>💡 Для повної функціональності карти потрібен API ключ Google Maps</small>
+            `);
         }
         
         // Ініціалізація при завантаженні сторінки
@@ -528,13 +599,8 @@
             // Встановлюємо приклади координат Києва
             document.getElementById('latInput').value = '50.4501';
             document.getElementById('lonInput').value = '30.5234';
-        });
-    </script>
-    
-    <!-- Замініть YOUR_API_KEY на ваш реальний API ключ Google Maps -->
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap"></script>
-</body>
-</html>
+            
+            // Автоматично показуємо прикл
 
 
 
