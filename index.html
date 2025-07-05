@@ -177,6 +177,83 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
         
+        .coordinate-marker {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #e74c3c;
+            border: 3px solid white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.2); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+        
+        .quick-actions {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #ecf0f1;
+        }
+        
+        .quick-actions h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .quick-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .quick-btn {
+            padding: 8px 12px;
+            font-size: 12px;
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 80px;
+        }
+        
+        .quick-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+        }
+        
+        .format-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #ecf0f1;
+        }
+        
+        .format-section h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .format-examples {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #6c757d;
+            line-height: 1.4;
+        }
+        
         @media (max-width: 768px) {
             .main-container {
                 flex-direction: column;
@@ -197,6 +274,39 @@
                 left: 15px;
                 right: 15px;
             }
+        }
+        
+        .copy-btn {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .copy-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
+        }
+        
+        .error-message {
+            color: #e74c3c;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 4px solid #e74c3c;
+        }
+        
+        .success-message {
+            color: #27ae60;
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 4px solid #27ae60;
         }
     </style>
 </head>
@@ -219,12 +329,12 @@
             <!-- Секція вводу Lat/Lon -->
             <div class="input-group">
                 <label for="latInput">Широта:</label>
-                <input type="text" id="latInput" placeholder="50.4501">
+                <input type="text" id="latInput" placeholder="50.4501" oninput="validateInput()">
             </div>
             
             <div class="input-group">
                 <label for="lonInput">Довгота:</label>
-                <input type="text" id="lonInput" placeholder="30.5234">
+                <input type="text" id="lonInput" placeholder="30.5234" oninput="validateInput()">
             </div>
             
             <!-- Кнопки для конвертації -->
@@ -241,10 +351,34 @@
                 <h3>Конвертація з MGRS</h3>
                 <div class="input-group">
                     <label for="mgrsInput">MGRS координати:</label>
-                    <input type="text" id="mgrsInput" placeholder="36UYA1234567890">
+                    <input type="text" id="mgrsInput" placeholder="36UYA1234567890" oninput="validateMGRSInput()">
                 </div>
                 <div class="button-group">
                     <button onclick="convertMGRSToLatLon()">→ Lat/Lon</button>
+                </div>
+            </div>
+            
+            <!-- Швидкі дії -->
+            <div class="quick-actions">
+                <h3>Швидкі дії</h3>
+                <div class="quick-buttons">
+                    <button class="quick-btn" onclick="setKyivCoordinates()">Київ</button>
+                    <button class="quick-btn" onclick="setLvivCoordinates()">Львів</button>
+                    <button class="quick-btn" onclick="setOdesaCoordinates()">Одеса</button>
+                    <button class="quick-btn" onclick="clearInputs()">Очистити</button>
+                </div>
+            </div>
+            
+            <!-- Формати -->
+            <div class="format-section">
+                <h3>Формати вводу</h3>
+                <div class="format-examples">
+                    <strong>Lat/Lon:</strong> 50.4501, 30.5234<br>
+                    <strong>MGRS:</strong> 36UYA1234567890<br>
+                    <strong>Приклади:</strong><br>
+                    • Десяткові градуси: 50.4501<br>
+                    • MGRS повний: 36UYA1234567890<br>
+                    • MGRS скорочений: 36UYA12345678
                 </div>
             </div>
             
@@ -404,10 +538,80 @@
         // Define the projections
         proj4.defs("WGS84", "+proj=longlat +datum=WGS84 +no_defs");
         
-        function showResult(content) {
+        function showResult(content, isError = false) {
             const resultDiv = document.getElementById('result');
             resultDiv.innerHTML = content;
             resultDiv.style.display = 'block';
+            
+            if (isError) {
+                resultDiv.className = 'result-section error-message';
+            } else {
+                resultDiv.className = 'result-section';
+            }
+        }
+        
+        function addCopyButton(text, label) {
+            return `<button class="copy-btn" onclick="copyToClipboard('${text}')">${label}</button>`;
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                showTemporaryMessage('Скопійовано!', 'success');
+            }, function() {
+                showTemporaryMessage('Помилка копіювання', 'error');
+            });
+        }
+        
+        function showTemporaryMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'success' ? 'success-message' : 'error-message';
+            messageDiv.textContent = message;
+            messageDiv.style.position = 'fixed';
+            messageDiv.style.top = '20px';
+            messageDiv.style.right = '20px';
+            messageDiv.style.zIndex = '9999';
+            messageDiv.style.padding = '10px 20px';
+            messageDiv.style.borderRadius = '8px';
+            messageDiv.style.fontSize = '14px';
+            messageDiv.style.fontWeight = '600';
+            document.body.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                document.body.removeChild(messageDiv);
+            }, 3000);
+        }
+        
+        function validateInput() {
+            const lat = document.getElementById('latInput').value;
+            const lon = document.getElementById('lonInput').value;
+            
+            if (lat && lon) {
+                const latNum = parseFloat(lat);
+                const lonNum = parseFloat(lon);
+                
+                if (latNum < -90 || latNum > 90) {
+                    document.getElementById('latInput').style.borderColor = '#e74c3c';
+                } else {
+                    document.getElementById('latInput').style.borderColor = '#e0e0e0';
+                }
+                
+                if (lonNum < -180 || lonNum > 180) {
+                    document.getElementById('lonInput').style.borderColor = '#e74c3c';
+                } else {
+                    document.getElementById('lonInput').style.borderColor = '#e0e0e0';
+                }
+            }
+        }
+        
+        function validateMGRSInput() {
+            const mgrs = document.getElementById('mgrsInput').value.trim().toUpperCase();
+            const mgrsPattern = /^(\d+)([A-Z])([A-Z]{2})(.*)$/;
+            
+            if (mgrs && !mgrsPattern.test(mgrs)) {
+                document.getElementById('mgrsInput').style.borderColor = '#e74c3c';
+            } else {
+                document.getElementById('mgrsInput').style.borderColor = '#e0e0e0';
+            }
         }
         
         function convertLatLonToUTM() {
@@ -415,192 +619,36 @@
             const lon = parseFloat(document.getElementById('lonInput').value);
             
             if (isNaN(lat) || isNaN(lon)) {
-                showResult('<strong>Помилка:</strong> введіть коректні значення широти та довготи');
+                showResult('<strong>Помилка:</strong> введіть коректні значення широти та довготи', true);
+                return;
+            }
+            
+            if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                showResult('<strong>Помилка:</strong> координати поза допустимими межами', true);
                 return;
             }
             
             try {
                 const utm = mgrsConverter.latLonToUTM(lat, lon);
                 const latBand = mgrsConverter.getLatitudeBand(lat);
+                const utmString = `${utm.zone}${latBand} ${utm.easting.toFixed(0)}E ${utm.northing.toFixed(0)}N`;
                 
                 showResult(`
                     <strong>UTM результат:</strong><br>
                     Зона: ${utm.zone}${latBand} (${utm.hemisphere})<br>
                     Easting: ${utm.easting.toFixed(2)} м<br>
                     Northing: ${utm.northing.toFixed(2)} м<br>
-                    UTM: ${utm.zone}${latBand} ${utm.easting.toFixed(0)}E ${utm.northing.toFixed(0)}N
+                    UTM: ${utmString}
+                    ${addCopyButton(utmString, 'Копіювати UTM')}
                 `);
             } catch (error) {
-                showResult('<strong>Помилка:</strong> при конвертації в UTM - ' + error.message);
+                showResult('<strong>Помилка:</strong> при конвертації в UTM - ' + error.message, true);
             }
         }
         
         function convertLatLonToMGRS() {
             const lat = parseFloat(document.getElementById('latInput').value);
-            const lon = parseFloat(document.getElementById('lonInput').value);
-            
-            if (isNaN(lat) || isNaN(lon)) {
-                showResult('<strong>Помилка:</strong> введіть коректні значення широти та довготи');
-                return;
-            }
-            
-            try {
-                const mgrsCoord = mgrsConverter.latLonToMGRS(lat, lon);
-                const utm = mgrsConverter.latLonToUTM(lat, lon);
-                const latBand = mgrsConverter.getLatitudeBand(lat);
-                
-                showResult(`
-                    <strong>MGRS результат:</strong><br>
-                    MGRS: <strong>${mgrsCoord}</strong><br>
-                    UTM зона: ${utm.zone}${latBand} (${utm.hemisphere})<br>
-                    <small>Точність: 1 метр (5 цифр)</small>
-                `);
-            } catch (error) {
-                showResult('<strong>Помилка:</strong> при конвертації в MGRS - ' + error.message);
-            }
-        }
-        
-        function convertLatLonToAll() {
-            const lat = parseFloat(document.getElementById('latInput').value);
-            const lon = parseFloat(document.getElementById('lonInput').value);
-            
-            if (isNaN(lat) || isNaN(lon)) {
-                showResult('<strong>Помилка:</strong> введіть коректні значення широти та довготи');
-                return;
-            }
-            
-            try {
-                const utm = mgrsConverter.latLonToUTM(lat, lon);
-                const latBand = mgrsConverter.getLatitudeBand(lat);
-                const mgrsCoord = mgrsConverter.latLonToMGRS(lat, lon);
-                
-                showResult(`
-                    <strong>Результати конвертації:</strong><br><br>
-                    <strong>Вхідні дані:</strong><br>
-                    Широта: ${lat.toFixed(6)}°<br>
-                    Довгота: ${lon.toFixed(6)}°<br><br>
-                    <strong>UTM:</strong><br>
-                    Зона: ${utm.zone}${latBand} (${utm.hemisphere})<br>
-                    Easting: ${utm.easting.toFixed(2)} м<br>
-                    Northing: ${utm.northing.toFixed(2)} м<br>
-                    Повний UTM: ${utm.zone}${latBand} ${utm.easting.toFixed(0)}E ${utm.northing.toFixed(0)}N<br><br>
-                    <strong>MGRS:</strong><br>
-                    <strong>${mgrsCoord}</strong><br>
-                    <small>Точність: 1 метр</small>
-                `);
-            } catch (error) {
-                showResult('<strong>Помилка:</strong> при конвертації - ' + error.message);
-            }
-        }
-        
-        function convertLatLonToAllPrecisions() {
-            const lat = parseFloat(document.getElementById('latInput').value);
-            const lon = parseFloat(document.getElementById('lonInput').value);
-            
-            if (isNaN(lat) || isNaN(lon)) {
-                showResult('<strong>Помилка:</strong> введіть коректні значення широти та довготи');
-                return;
-            }
-            
-            try {
-                const utm = mgrsConverter.latLonToUTM(lat, lon);
-                const latBand = mgrsConverter.getLatitudeBand(lat);
-                
-                const precisionDescriptions = {
-                    1: '10 км',
-                    2: '1 км', 
-                    3: '100 м',
-                    4: '10 м',
-                    5: '1 м'
-                };
-                
-                let result = `<strong>MGRS з різними точностями:</strong><br><br>`;
-                result += `<strong>Координати:</strong> ${lat.toFixed(6)}°, ${lon.toFixed(6)}°<br>`;
-                result += `<strong>UTM зона:</strong> ${utm.zone}${latBand} (${utm.hemisphere})<br><br>`;
-                
-                for (let precision = 1; precision <= 5; precision++) {
-                    const mgrsCoord = mgrsConverter.latLonToMGRS(lat, lon, precision);
-                    result += `<strong>${precisionDescriptions[precision]}:</strong> ${mgrsCoord}<br>`;
-                }
-                
-                result += `<br><small>Рекомендовано використовувати точність 1м для більшості завдань</small>`;
-                
-                showResult(result);
-            } catch (error) {
-                showResult('<strong>Помилка:</strong> при конвертації - ' + error.message);
-            }
-        }
-        
-        function convertMGRSToLatLon() {
-            const mgrsInput = document.getElementById('mgrsInput').value.trim().toUpperCase();
-            
-            if (!mgrsInput) {
-                showResult('<strong>Помилка:</strong> введіть MGRS координати');
-                return;
-            }
-            
-            try {
-                const [lat, lon] = mgrsConverter.mgrsToLatLon(mgrsInput);
-                
-                // Оновлюємо поля вводу
-                document.getElementById('latInput').value = lat.toFixed(6);
-                document.getElementById('lonInput').value = lon.toFixed(6);
-                
-                const utm = mgrsConverter.latLonToUTM(lat, lon);
-                const latBand = mgrsConverter.getLatitudeBand(lat);
-                
-                // Перевіряємо точність вихідного MGRS
-                const backToMGRS = mgrsConverter.latLonToMGRS(lat, lon);
-                const precisionMatch = mgrsInput === backToMGRS;
-                
-                showResult(`
-                    <strong>Результат конвертації з MGRS:</strong><br><br>
-                    <strong>Вхідні дані:</strong><br>
-                    MGRS: <strong>${mgrsInput}</strong><br><br>
-                    <strong>Результат:</strong><br>
-                    Широта: ${lat.toFixed(6)}°<br>
-                    Довгота: ${lon.toFixed(6)}°<br><br>
-                    <strong>UTM:</strong><br>
-                    Зона: ${utm.zone}${latBand} (${utm.hemisphere})<br>
-                    Easting: ${utm.easting.toFixed(2)} м<br>
-                    Northing: ${utm.northing.toFixed(2)} м<br><br>
-                    <strong>Перевірка:</strong><br>
-                    Зворотна конвертація: ${backToMGRS}<br>
-                    ${precisionMatch ? 
-                        '<span style="color: green;">✓ Точність підтверджена</span>' : 
-                        '<span style="color: orange;">⚠ Різні рівні точності</span>'
-                    }
-                `);
-            } catch (error) {
-                showResult('<strong>Помилка:</strong> некоректний формат MGRS або помилка конвертації - ' + error.message);
-            }
-        }
-        
-        function showOnMap() {
-            const lat = parseFloat(document.getElementById('latInput').value);
-            const lon = parseFloat(document.getElementById('lonInput').value);
-            
-            if (isNaN(lat) || isNaN(lon)) {
-                showResult('<strong>Помилка:</strong> введіть коректні значення широти та довготи');
-                return;
-            }
-            
-            // Симуляція відображення на карті
-            showResult(`
-                <strong>Координати відображено на карті:</strong><br><br>
-                Широта: ${lat.toFixed(6)}°<br>
-                Довгота: ${lon.toFixed(6)}°<br><br>
-                <small>💡 Для повної функціональності карти потрібен API ключ Google Maps</small>
-            `);
-        }
-        
-        // Ініціалізація при завантаженні сторінки
-        document.addEventListener('DOMContentLoaded', function() {
-            // Встановлюємо приклади координат Києва
-            document.getElementById('latInput').value = '50.4501';
-            document.getElementById('lonInput').value = '30.5234';
-            
-            // Автоматично показуємо прикл
+            const lon =
 
 
 
