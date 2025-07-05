@@ -1,7 +1,6 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>GeoConverter</title>
+<html lang="uk">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Конвертер координат Lat/Lon ↔ UTM ↔ MGRS</title>
@@ -74,11 +73,225 @@
             return [lat, lon];
         }
     </script>
-    <script async
-      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 500px;
+        }
+        input, button {
+            padding: 8px;
+            font-size: 16px;
+        }
+        button {
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin: 2px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result-section {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .mgrs-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+        .mgrs-input {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Конвертер координат</h1>
+        
+        <!-- Секція вводу Lat/Lon -->
+        <div>
+            <label for="latInput">Широта:</label>
+            <input type="text" id="latInput" placeholder="Введіть широту (наприклад: 50.4501)">
+        </div>
+        <div>
+            <label for="lonInput">Довгота:</label>
+            <input type="text" id="lonInput" placeholder="Введіть довготу (наприклад: 30.5234)">
+        </div>
+        
+        <!-- Кнопки для конвертації -->
+        <div class="button-group">
+            <button onclick="convertLatLonToUTM()">Конвертувати Lat/Lon в UTM</button>
+            <button onclick="convertLatLonToMGRS()">Конвертувати Lat/Lon в MGRS</button>
+            <button onclick="convertLatLonToAll()">Конвертувати в UTM і MGRS</button>
+        </div>
+        
+        <!-- Секція MGRS -->
+        <div class="mgrs-section">
+            <h3>Конвертація з MGRS</h3>
+            <div class="mgrs-input">
+                <label for="mgrsInput">MGRS координати:</label>
+                <input type="text" id="mgrsInput" placeholder="Введіть MGRS (наприклад: 36UYA1234567890)">
+            </div>
+            <button onclick="convertMGRSToLatLon()">Конвертувати MGRS в Lat/Lon</button>
+        </div>
+        
+        <!-- Результати -->
+        <div id="result" class="result-section"></div>
+    </div>
+    
+    <script>
+        // Define the projections
+        proj4.defs("WGS84", "+proj=longlat +datum=WGS84 +no_defs");
+        proj4.defs("UTM", "+proj=utm +zone=36 +datum=WGS84 +units=m +no_defs"); // Змінено на зону 36 для України
+        
+        function convertLatLonToUTM() {
+            const lat = parseFloat(document.getElementById('latInput').value);
+            const lon = parseFloat(document.getElementById('lonInput').value);
+            
+            if (isNaN(lat) || isNaN(lon)) {
+                document.getElementById('result').innerHTML = '<strong>Помилка:</strong> введіть коректні значення широти та довготи';
+                return;
+            }
+            
+            try {
+                // Автоматичне визначення UTM зони
+                const utmZone = Math.floor((lon + 180) / 6) + 1;
+                const utmProj = `+proj=utm +zone=${utmZone} +datum=WGS84 +units=m +no_defs`;
+                
+                const [x, y] = proj4("WGS84", utmProj, [lon, lat]);
+                
+                document.getElementById('result').innerHTML = `
+                    <strong>UTM результат:</strong><br>
+                    Зона: ${utmZone}<br>
+                    Easting: ${x.toFixed(2)} м<br>
+                    Northing: ${y.toFixed(2)} м<br>
+                    UTM: ${utmZone} ${x.toFixed(2)} E, ${y.toFixed(2)} N
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = '<strong>Помилка:</strong> при конвертації в UTM';
+            }
+        }
+        
+        function convertLatLonToMGRS() {
+            const lat = parseFloat(document.getElementById('latInput').value);
+            const lon = parseFloat(document.getElementById('lonInput').value);
+            
+            if (isNaN(lat) || isNaN(lon)) {
+                document.getElementById('result').innerHTML = '<strong>Помилка:</strong> введіть коректні значення широти та довготи';
+                return;
+            }
+            
+            try {
+                // Конвертація в MGRS з використанням власної реалізації
+                const mgrsCoord = convertToMGRS(lat, lon);
+                
+                document.getElementById('result').innerHTML = `
+                    <strong>MGRS результат:</strong><br>
+                    MGRS: ${mgrsCoord}<br>
+                    <small>Примітка: Це спрощена реалізація MGRS</small>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = '<strong>Помилка:</strong> при конвертації в MGRS - ' + error.message;
+            }
+        }
+        
+        function convertLatLonToAll() {
+            const lat = parseFloat(document.getElementById('latInput').value);
+            const lon = parseFloat(document.getElementById('lonInput').value);
+            
+            if (isNaN(lat) || isNaN(lon)) {
+                document.getElementById('result').innerHTML = '<strong>Помилка:</strong> введіть коректні значення широти та довготи';
+                return;
+            }
+            
+            try {
+                // UTM конвертація
+                const utmZone = Math.floor((lon + 180) / 6) + 1;
+                const utmProj = `+proj=utm +zone=${utmZone} +datum=WGS84 +units=m +no_defs`;
+                const [x, y] = proj4("WGS84", utmProj, [lon, lat]);
+                
+                // MGRS конвертація
+                const mgrsCoord = convertToMGRS(lat, lon);
+                
+                document.getElementById('result').innerHTML = `
+                    <strong>Результати конвертації:</strong><br><br>
+                    <strong>Вхідні дані:</strong><br>
+                    Широта: ${lat}°<br>
+                    Довгота: ${lon}°<br><br>
+                    <strong>UTM:</strong><br>
+                    Зона: ${utmZone}<br>
+                    Easting: ${x.toFixed(2)} м<br>
+                    Northing: ${y.toFixed(2)} м<br><br>
+                    <strong>MGRS:</strong><br>
+                    ${mgrsCoord}<br>
+                    <small>Примітка: Це спрощена реалізація MGRS</small>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = '<strong>Помилка:</strong> при конвертації - ' + error.message;
+            }
+        }
+        
+        function convertMGRSToLatLon() {
+            const mgrsInput = document.getElementById('mgrsInput').value.trim().toUpperCase();
+            
+            if (!mgrsInput) {
+                document.getElementById('result').innerHTML = '<strong>Помилка:</strong> введіть MGRS координати';
+                return;
+            }
+            
+            try {
+                // Конвертація з MGRS в Lat/Lon з використанням власної реалізації
+                const [lat, lon] = convertFromMGRS(mgrsInput);
+                
+                // Також конвертуємо в UTM для повноти
+                const utmZone = Math.floor((lon + 180) / 6) + 1;
+                const utmProj = `+proj=utm +zone=${utmZone} +datum=WGS84 +units=m +no_defs`;
+                const [x, y] = proj4("WGS84", utmProj, [lon, lat]);
+                
+                document.getElementById('result').innerHTML = `
+                    <strong>Результат конвертації з MGRS:</strong><br><br>
+                    <strong>Вхідні дані:</strong><br>
+                    MGRS: ${mgrsInput}<br><br>
+                    <strong>Lat/Lon:</strong><br>
+                    Широта: ${lat.toFixed(6)}°<br>
+                    Довгота: ${lon.toFixed(6)}°<br><br>
+                    <strong>UTM:</strong><br>
+                    Зона: ${utmZone}<br>
+                    Easting: ${x.toFixed(2)} м<br>
+                    Northing: ${y.toFixed(2)} м<br>
+                    <small>Примітка: Це спрощена реалізація MGRS</small>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = '<strong>Помилка:</strong> некоректний формат MGRS або помилка конвертації - ' + error.message;
+            }
+        }
+        
+        // Приклад автозаповнення для тестування (координати Києва)
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('latInput').placeholder = 'Введіть широту (наприклад: 50.4501)';
+            document.getElementById('lonInput').placeholder = 'Введіть довготу (наприклад: 30.5234)';
+            document.getElementById('mgrsInput').placeholder = 'Введіть MGRS (наприклад: 36UYA1234567890)';
+        });
     </script>
-  </body>
+</body>
 </html>
+
 
 
 
