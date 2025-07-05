@@ -1,227 +1,143 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Конвертер координат Lat/Lon ↔ UTM ↔ MGRS</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Конвертер координат</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/geodesy@2.2.1/utm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/geodesy@2.2.1/mgrs.js"></script>
   <style>
-    body { margin: 0; font-family: Arial, sans-serif; }
-    #map { height: 100vh; width: 100%; }
-    .control-panel { position: absolute; top: 0; right: 0; width: 420px; height: 100vh; background: white; overflow-y: auto; padding: 20px; z-index: 2; }
-    input, button { display: block; width: 100%; margin-bottom: 10px; padding: 10px; }
-    .copy-btn { background: orange; color: white; border: none; padding: 6px 12px; cursor: pointer; }
-    .result-section { background: #f4f4f4; padding: 10px; margin-top: 10px; }
-    .error-message { background: #ffe6e6; color: #e74c3c; }
-    .success-message { background: #e6ffe6; color: #27ae60; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      display: flex;
+      height: 100%;
+    }
+    #map {
+      flex: 1;
+      height: 100%;
+    }
+    .panel {
+      width: 400px;
+      padding: 20px;
+      background: #f7f7f7;
+      overflow-y: auto;
+      box-shadow: -3px 0 10px rgba(0,0,0,0.1);
+    }
+    .panel h2 {
+      margin-top: 0;
+    }
+    .input-group {
+      margin-bottom: 10px;
+    }
+    .input-group label {
+      display: block;
+      margin-bottom: 4px;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 6px;
+    }
+    button {
+      padding: 10px 15px;
+      margin-right: 10px;
+      margin-top: 10px;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 10px;
+      background: #e3f2fd;
+      border-radius: 5px;
+    }
   </style>
 </head>
 <body>
+  <div class="container">
+    <div id="map"></div>
+    <div class="panel">
+      <h2>Конвертер координат</h2>
 
-  <div id="map"></div>
+      <div class="input-group">
+        <label>Lat</label>
+        <input type="text" id="latInput" placeholder="50.45">
+      </div>
 
-  <div class="control-panel">
-    <h1>Конвертер координат</h1>
+      <div class="input-group">
+        <label>Lon</label>
+        <input type="text" id="lonInput" placeholder="30.52">
+      </div>
 
-    <label>Широта:</label>
-    <input type="text" id="latInput" placeholder="50.4501" oninput="validateInput()" />
+      <button onclick="convertToMGRS()">Lat/Lon → MGRS</button>
+      <button onclick="convertToLatLon()">MGRS → Lat/Lon</button>
 
-    <label>Довгота:</label>
-    <input type="text" id="lonInput" placeholder="30.5234" oninput="validateInput()" />
+      <div class="input-group">
+        <label>MGRS</label>
+        <input type="text" id="mgrsInput" placeholder="36UXP0423">
+      </div>
 
-    <button onclick="convertLatLonToAll()">→ UTM + MGRS</button>
-    <button onclick="convertLatLonToAllPrecisions()">→ MGRS (всі точності)</button>
-    <button onclick="showOnMap()">Показати на карті</button>
-
-    <label>MGRS координати:</label>
-    <input type="text" id="mgrsInput" oninput="validateMGRSInput()" placeholder="36UYA1234567890" />
-    <button onclick="convertMGRSToLatLon()">→ Lat/Lon</button>
-
-    <div style="margin-top: 20px;">
-      <button onclick="setKyivCoordinates()">Київ</button>
-      <button onclick="setLvivCoordinates()">Львів</button>
-      <button onclick="setOdesaCoordinates()">Одеса</button>
-      <button onclick="clearInputs()">Очистити</button>
+      <div id="result" class="result"></div>
     </div>
-
-    <div id="result" class="result-section" style="display:none;"></div>
   </div>
 
   <script>
-    let gmap;
-    let currentMarker = null;
+    let map;
+    let marker;
 
     function initMap() {
-      gmap = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 50.4501, lng: 30.5234 },
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 50.45, lng: 30.52 },
         zoom: 6,
       });
     }
 
-    function showOnMap() {
-      const lat = parseFloat(document.getElementById("latInput").value);
-      const lon = parseFloat(document.getElementById("lonInput").value);
-      if (isNaN(lat) || isNaN(lon)) {
-        showTemporaryMessage("Невірні координати", "error");
-        return;
+    function convertToMGRS() {
+      const lat = parseFloat(document.getElementById('latInput').value);
+      const lon = parseFloat(document.getElementById('lonInput').value);
+      if (isNaN(lat) || isNaN(lon)) return alert("Некоректні Lat/Lon");
+
+      const utm = Utm.fromLatLon(lat, lon);
+      const mgrs = utm.toMgrs().toString();
+      document.getElementById("result").innerText = `MGRS: ${mgrs}`;
+
+      if (map) {
+        const latLng = { lat, lng: lon };
+        map.setCenter(latLng);
+        map.setZoom(14);
+        if (marker) marker.setMap(null);
+        marker = new google.maps.Marker({ position: latLng, map });
       }
-      const pos = { lat, lng: lon };
-      if (currentMarker) currentMarker.setMap(null);
-      currentMarker = new google.maps.Marker({ position: pos, map: gmap });
-      gmap.setCenter(pos);
-      gmap.setZoom(12);
     }
 
-    function validateInput() {
-      const lat = parseFloat(document.getElementById("latInput").value);
-      const lon = parseFloat(document.getElementById("lonInput").value);
-      document.getElementById("latInput").style.borderColor = (lat < -90 || lat > 90) ? "#e74c3c" : "#ccc";
-      document.getElementById("lonInput").style.borderColor = (lon < -180 || lon > 180) ? "#e74c3c" : "#ccc";
-    }
-
-    function validateMGRSInput() {}
-
-    function convertLatLonToAll() {
-      const lat = parseFloat(document.getElementById("latInput").value);
-      const lon = parseFloat(document.getElementById("lonInput").value);
-      if (isNaN(lat) || isNaN(lon)) {
-        showResult("Невірні координати", true);
-        return;
-      }
-      const utm = mgrsConverter.latLonToUTM(lat, lon);
-      const mgrs = mgrsConverter.latLonToMGRS(lat, lon);
-      showResult(`UTM: ${utm.zone}${utm.hemisphere} ${utm.easting.toFixed(2)} ${utm.northing.toFixed(2)}<br>
-        MGRS: ${mgrs} ${addCopyButton(mgrs, "Скопіювати")}`);
-    }
-
-    function convertLatLonToAllPrecisions() {
-      const lat = parseFloat(document.getElementById("latInput").value);
-      const lon = parseFloat(document.getElementById("lonInput").value);
-      if (isNaN(lat) || isNaN(lon)) {
-        showResult("Невірні координати", true);
-        return;
-      }
-      let output = "";
-      for (let p = 1; p <= 5; p++) {
-        const mgrs = mgrsConverter.latLonToMGRS(lat, lon, p);
-        output += `${p * 2}-digit: ${mgrs} ${addCopyButton(mgrs, "📋")}<br>`;
-      }
-      showResult(output);
-    }
-
-    function convertMGRSToLatLon() {
+    function convertToLatLon() {
+      const mgrsStr = document.getElementById('mgrsInput').value.trim();
       try {
-        const mgrs = document.getElementById("mgrsInput").value.trim();
-        const [lat, lon] = mgrsConverter.mgrsToLatLon(mgrs);
-        document.getElementById("latInput").value = lat.toFixed(6);
-        document.getElementById("lonInput").value = lon.toFixed(6);
-        showResult(`Широта: ${lat.toFixed(6)}, Довгота: ${lon.toFixed(6)}`);
+        const mgrs = Mgrs.parse(mgrsStr);
+        const utm = mgrs.toUtm();
+        const latLon = utm.toLatLonE();
+        document.getElementById("result").innerText = `Lat: ${latLon.lat.toFixed(6)}, Lon: ${latLon.lon.toFixed(6)}`;
+
+        if (map) {
+          const latLng = { lat: latLon.lat, lng: latLon.lon };
+          map.setCenter(latLng);
+          map.setZoom(14);
+          if (marker) marker.setMap(null);
+          marker = new google.maps.Marker({ position: latLng, map });
+        }
       } catch (e) {
-        showResult("❌ Неможливо розпізнати MGRS координати", true);
+        alert("Некоректний формат MGRS");
       }
     }
-
-    function setKyivCoordinates() {
-      document.getElementById("latInput").value = "50.4501";
-      document.getElementById("lonInput").value = "30.5234";
-    }
-
-    function setLvivCoordinates() {
-      document.getElementById("latInput").value = "49.8397";
-      document.getElementById("lonInput").value = "24.0297";
-    }
-
-    function setOdesaCoordinates() {
-      document.getElementById("latInput").value = "46.4825";
-      document.getElementById("lonInput").value = "30.7233";
-    }
-
-    function clearInputs() {
-      ['latInput', 'lonInput', 'mgrsInput'].forEach(id => document.getElementById(id).value = '');
-      document.getElementById("result").style.display = "none";
-    }
-
-    function showResult(content, isError = false) {
-      const div = document.getElementById("result");
-      div.innerHTML = content;
-      div.style.display = "block";
-      div.className = `result-section ${isError ? "error-message" : ""}`;
-    }
-
-    function showTemporaryMessage(message, type) {
-      const msg = document.createElement("div");
-      msg.className = type === "success" ? "success-message" : "error-message";
-      msg.innerText = message;
-      msg.style.position = "fixed";
-      msg.style.top = "20px";
-      msg.style.right = "20px";
-      msg.style.padding = "10px";
-      msg.style.zIndex = 9999;
-      document.body.appendChild(msg);
-      setTimeout(() => msg.remove(), 3000);
-    }
-
-    function addCopyButton(text, label) {
-      return `<button class="copy-btn" onclick="copyToClipboard('${text}')">${label}</button>`;
-    }
-
-    function copyToClipboard(text) {
-      navigator.clipboard.writeText(text).then(() => {
-        showTemporaryMessage("Скопійовано!", "success");
-      });
-    }
-
-    // === MGRSConverter ===
-    class MGRSConverter {
-      latLonToUTM(lat, lon) {
-        const zone = Math.floor((lon + 180) / 6) + 1;
-        const hemisphere = lat >= 0 ? 'N' : 'S';
-        const projStr = `+proj=utm +zone=${zone} +${hemisphere === 'N' ? '' : 'south '}+datum=WGS84`;
-        const [easting, northing] = proj4('WGS84', projStr, [lon, lat]);
-        return { zone, hemisphere, easting, northing };
-      }
-
-      latLonToMGRS(lat, lon, precision = 5) {
-        const utm = this.latLonToUTM(lat, lon);
-        const e100kLetters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-        const n100kLetters = "ABCDEFGHJKLMNPQRSTUV";
-        const zone = utm.zone;
-        const e100k = Math.floor(utm.easting / 100000);
-        const n100k = Math.floor(utm.northing / 100000) % 20;
-        const eLetter = e100kLetters[(zone - 1) % 3 * 8 + e100k];
-        const nLetter = n100kLetters[(zone % 2) * 5 + n100k % 20];
-        const set = Math.pow(10, 5 - precision);
-        const e = Math.floor(utm.easting % 100000 / set).toString().padStart(precision, '0');
-        const n = Math.floor(utm.northing % 100000 / set).toString().padStart(precision, '0');
-        return `${zone}${utm.hemisphere}${eLetter}${nLetter}${e}${n}`;
-      }
-
-      mgrsToLatLon(mgrs) {
-        const regex = /^(\d{1,2})([NS])([A-Z])([A-Z])(\d{2,10})$/i;
-        const m = mgrs.toUpperCase().replace(/\s/g, "").match(/^(\d{1,2})([NS])([A-Z]{2})(\d{2,10})$/);
-        if (!m) throw new Error("Invalid MGRS");
-
-        const zone = parseInt(m[1], 10);
-        const hemisphere = m[2];
-        const grid = m[3];
-        const numbers = m[4];
-        const precision = numbers.length / 2;
-        const easting = parseInt(numbers.substring(0, precision).padEnd(5, '0'), 10);
-        const northing = parseInt(numbers.substring(precision).padEnd(5, '0'), 10);
-
-        const projStr = `+proj=utm +zone=${zone} ${hemisphere === 'S' ? '+south' : ''} +datum=WGS84`;
-        const [lon, lat] = proj4(projStr, 'WGS84', [easting, northing]);
-        return [lat, lon];
-      }
-    }
-
-    const mgrsConverter = new MGRSConverter();
   </script>
 
-  <!-- Google Maps API -->
   <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap"></script>
 </body>
 </html>
+
 
 
 
