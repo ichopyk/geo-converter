@@ -5,72 +5,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Конвертер координат Lat/Lon ↔ UTM ↔ MGRS</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
-    <!-- Додаємо просту реалізацію MGRS -->
+    <!-- Додаємо бібліотеку MGRS для точної конвертації -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mgrs/1.0.0/mgrs.min.js"></script>
     <script>
-        // Проста реалізація MGRS конвертації
-        function convertToMGRS(lat, lon) {
-            // Визначаємо UTM зону
+        // Використовуємо бібліотеку MGRS для точної конвертації
+        function convertToMGRS(lat, lon, precision = 5) {
+            try {
+                // Конвертуємо в MGRS з заданою точністю
+                return mgrs.forward([lon, lat], precision);
+            } catch (error) {
+                throw new Error('Помилка конвертації в MGRS: ' + error.message);
+            }
+        }
+        
+        function convertFromMGRS(mgrsString) {
+            try {
+                // Парсимо MGRS і конвертуємо в координати [lng, lat]
+                const coords = mgrs.inverse(mgrsString.trim().toUpperCase());
+                return [coords[1], coords[0]]; // Повертаємо [lat, lng]
+            } catch (error) {
+                throw new Error('Некоректний формат MGRS: ' + error.message);
+            }
+        }
+        
+        // Додаткова функція для різних рівнів точності MGRS
+        function getMGRSWithDifferentPrecisions(lat, lon) {
+            const precisions = [1, 2, 3, 4, 5];
+            const results = {};
+            
+            precisions.forEach(precision => {
+                try {
+                    results[precision] = mgrs.forward([lon, lat], precision);
+                } catch (error) {
+                    results[precision] = 'Помилка';
+                }
+            });
+            
+            return results;
+        }
+        
+        // Функція для отримання інформації про UTM зону
+        function getUTMZoneInfo(lat, lon) {
             const utmZone = Math.floor((lon + 180) / 6) + 1;
+            const hemisphere = lat >= 0 ? 'N' : 'S';
             
-            // Конвертуємо в UTM
-            const utmProj = `+proj=utm +zone=${utmZone} +datum=WGS84 +units=m +no_defs`;
-            const [easting, northing] = proj4("WGS84", utmProj, [lon, lat]);
-            
-            // Визначаємо літерну позначку зони (спрощено)
+            // Визначаємо літерну позначку зони
             const latBands = 'CDEFGHJKLMNPQRSTUVWXX';
             const latIndex = Math.floor((lat + 80) / 8);
             const latBand = latBands[Math.min(Math.max(latIndex, 0), latBands.length - 1)];
             
-            // Визначаємо 100км квадрат (спрощено)
-            const e100k = Math.floor(easting / 100000);
-            const n100k = Math.floor(northing / 100000);
-            
-            // Таблиці для літер 100км квадратів (спрощено)
-            const eastingLetters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-            const northingLetters = 'ABCDEFGHJKLMNPQRSTUV';
-            
-            const eastingLetter = eastingLetters[e100k % eastingLetters.length];
-            const northingLetter = northingLetters[n100k % northingLetters.length];
-            
-            // Координати в межах 100км квадрату
-            const eastingRemainder = Math.floor(easting % 100000);
-            const northingRemainder = Math.floor(northing % 100000);
-            
-            // Форматуємо результат (10-значний)
-            const eastingStr = eastingRemainder.toString().padStart(5, '0');
-            const northingStr = northingRemainder.toString().padStart(5, '0');
-            
-            return `${utmZone}${latBand}${eastingLetter}${northingLetter}${eastingStr}${northingStr}`;
-        }
-        
-        function convertFromMGRS(mgrsString) {
-            // Проста реалізація парсингу MGRS (базова)
-            const match = mgrsString.match(/^(\d{1,2})([C-X])([A-Z])([A-Z])(\d{2,10})$/);
-            if (!match) {
-                throw new Error('Некоректний формат MGRS');
-            }
-            
-            const [, zone, latBand, eastLetter, northLetter, coords] = match;
-            
-            // Розділяємо координати на easting та northing
-            const coordLen = coords.length;
-            if (coordLen % 2 !== 0) {
-                throw new Error('Некоректна довжина координат');
-            }
-            
-            const precision = coordLen / 2;
-            const eastingStr = coords.substring(0, precision);
-            const northingStr = coords.substring(precision);
-            
-            // Конвертуємо в повні UTM координати (спрощено)
-            const easting = parseInt(eastingStr) * Math.pow(10, 5 - precision);
-            const northing = parseInt(northingStr) * Math.pow(10, 5 - precision);
-            
-            // Конвертуємо з UTM в WGS84
-            const utmProj = `+proj=utm +zone=${zone} +datum=WGS84 +units=m +no_defs`;
-            const [lon, lat] = proj4(utmProj, "WGS84", [easting, northing]);
-            
-            return [lat, lon];
+            return {
+                zone: utmZone,
+                band: latBand,
+                hemisphere: hemisphere,
+                description: `UTM зона ${utmZone}${latBand} (${hemisphere})`
+            };
         }
     </script>
     <style>
@@ -255,6 +244,7 @@
                 <button onclick="convertLatLonToUTM()">→ UTM</button>
                 <button onclick="convertLatLonToMGRS()">→ MGRS</button>
                 <button onclick="convertLatLonToAll()">→ UTM + MGRS</button>
+                <button onclick="convertLatLonToAllPrecisions()">→ MGRS (всі точності)</button>
                 <button onclick="showOnMap()">Показати на карті</button>
             </div>
             
@@ -378,11 +368,13 @@
             
             try {
                 const mgrsCoord = convertToMGRS(lat, lon);
+                const utmInfo = getUTMZoneInfo(lat, lon);
                 
                 showResult(`
                     <strong>MGRS результат:</strong><br>
-                    MGRS: ${mgrsCoord}<br>
-                    <small>Примітка: Це спрощена реалізація MGRS</small>
+                    MGRS: <strong>${mgrsCoord}</strong><br>
+                    UTM зона: ${utmInfo.description}<br>
+                    <small>Точність: 1 метр (5 цифр)</small>
                 `);
             } catch (error) {
                 showResult('<strong>Помилка:</strong> при конвертації в MGRS - ' + error.message);
@@ -404,20 +396,59 @@
                 const [x, y] = proj4("WGS84", utmProj, [lon, lat]);
                 
                 const mgrsCoord = convertToMGRS(lat, lon);
+                const utmInfo = getUTMZoneInfo(lat, lon);
                 
                 showResult(`
                     <strong>Результати конвертації:</strong><br><br>
                     <strong>Вхідні дані:</strong><br>
-                    Широта: ${lat}°<br>
-                    Довгота: ${lon}°<br><br>
+                    Широта: ${lat.toFixed(6)}°<br>
+                    Довгота: ${lon.toFixed(6)}°<br><br>
                     <strong>UTM:</strong><br>
-                    Зона: ${utmZone}<br>
+                    Зона: ${utmInfo.description}<br>
                     Easting: ${x.toFixed(2)} м<br>
-                    Northing: ${y.toFixed(2)} м<br><br>
+                    Northing: ${y.toFixed(2)} м<br>
+                    Повний UTM: ${utmZone}${utmInfo.band} ${x.toFixed(0)}E ${y.toFixed(0)}N<br><br>
                     <strong>MGRS:</strong><br>
-                    ${mgrsCoord}<br>
-                    <small>Примітка: Це спрощена реалізація MGRS</small>
+                    <strong>${mgrsCoord}</strong><br>
+                    <small>Точність: 1 метр</small>
                 `);
+            } catch (error) {
+                showResult('<strong>Помилка:</strong> при конвертації - ' + error.message);
+            }
+        }
+        
+        function convertLatLonToAllPrecisions() {
+            const lat = parseFloat(document.getElementById('latInput').value);
+            const lon = parseFloat(document.getElementById('lonInput').value);
+            
+            if (isNaN(lat) || isNaN(lon)) {
+                showResult('<strong>Помилка:</strong> введіть коректні значення широти та довготи');
+                return;
+            }
+            
+            try {
+                const precisions = getMGRSWithDifferentPrecisions(lat, lon);
+                const utmInfo = getUTMZoneInfo(lat, lon);
+                
+                const precisionDescriptions = {
+                    1: '10 км',
+                    2: '1 км', 
+                    3: '100 м',
+                    4: '10 м',
+                    5: '1 м'
+                };
+                
+                let result = `<strong>MGRS з різними точностями:</strong><br><br>`;
+                result += `<strong>Координати:</strong> ${lat.toFixed(6)}°, ${lon.toFixed(6)}°<br>`;
+                result += `<strong>UTM зона:</strong> ${utmInfo.description}<br><br>`;
+                
+                Object.keys(precisions).forEach(precision => {
+                    result += `<strong>${precisionDescriptions[precision]}:</strong> ${precisions[precision]}<br>`;
+                });
+                
+                result += `<br><small>Рекомендовано використовувати точність 1м для більшості завдань</small>`;
+                
+                showResult(result);
             } catch (error) {
                 showResult('<strong>Помилка:</strong> при конвертації - ' + error.message);
             }
@@ -441,24 +472,36 @@
                 // Переміщуємо карту та маркер
                 const position = new google.maps.LatLng(lat, lon);
                 map.setCenter(position);
+                map.setZoom(15);
                 marker.setPosition(position);
                 
                 const utmZone = Math.floor((lon + 180) / 6) + 1;
                 const utmProj = `+proj=utm +zone=${utmZone} +datum=WGS84 +units=m +no_defs`;
                 const [x, y] = proj4("WGS84", utmProj, [lon, lat]);
                 
+                const utmInfo = getUTMZoneInfo(lat, lon);
+                
+                // Перевіряємо точність вихідного MGRS
+                const backToMGRS = convertToMGRS(lat, lon);
+                const precisionMatch = mgrsInput === backToMGRS;
+                
                 showResult(`
                     <strong>Результат конвертації з MGRS:</strong><br><br>
                     <strong>Вхідні дані:</strong><br>
-                    MGRS: ${mgrsInput}<br><br>
-                    <strong>Lat/Lon:</strong><br>
+                    MGRS: <strong>${mgrsInput}</strong><br><br>
+                    <strong>Результат:</strong><br>
                     Широта: ${lat.toFixed(6)}°<br>
                     Довгота: ${lon.toFixed(6)}°<br><br>
                     <strong>UTM:</strong><br>
-                    Зона: ${utmZone}<br>
+                    Зона: ${utmInfo.description}<br>
                     Easting: ${x.toFixed(2)} м<br>
-                    Northing: ${y.toFixed(2)} м<br>
-                    <small>Примітка: Це спрощена реалізація MGRS</small>
+                    Northing: ${y.toFixed(2)} м<br><br>
+                    <strong>Перевірка:</strong><br>
+                    Зворотна конвертація: ${backToMGRS}<br>
+                    ${precisionMatch ? 
+                        '<span style="color: green;">✓ Точність підтверджена</span>' : 
+                        '<span style="color: orange;">⚠ Можлива втрата точності</span>'
+                    }
                 `);
             } catch (error) {
                 showResult('<strong>Помилка:</strong> некоректний формат MGRS або помилка конвертації - ' + error.message);
