@@ -4,12 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Конвертер координат Lat/Lon ↔ UTM ↔ MGRS</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <script src="mgrs.min.js"></script>
-    <script src="proj4.js"></script>
-    <style>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap"></script>
+
+    <script src="mgrs.min.js"></script> <script src="proj4.js"></script>   <style>
+        /* Весь ваш CSS код залишається без змін */
         * {
             margin: 0;
             padding: 0;
@@ -181,7 +180,11 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
 
-        .coordinate-marker {
+        /* Стилі для маркера Google Maps можуть бути іншими, ніж для Leaflet,
+           але Google Maps API сам керує візуалізацією маркера.
+           Можна додати власний стиль маркера, якщо потрібно.
+        */
+        /* .coordinate-marker {
             position: absolute;
             width: 20px;
             height: 20px;
@@ -191,13 +194,13 @@
             transform: translate(-50%, -50%);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
             animation: pulse 2s infinite;
-        }
+        } */
 
-        @keyframes pulse {
+        /* @keyframes pulse {
             0% { transform: translate(-50%, -50%) scale(1); }
             50% { transform: translate(-50%, -50%) scale(1.2); }
             100% { transform: translate(-50%, -50%) scale(1); }
-        }
+        } */
 
         .quick-actions {
             margin-top: 20px;
@@ -445,19 +448,44 @@
     </div>
 
     <script>
-        // Global Leaflet map instance
+        // Global variables for Google Maps
         let map = null;
         let currentMarker = null;
 
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize Leaflet map
-            map = L.map('map').setView([50.4501, 30.5234], 6); // Centered on Kyiv
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
-            }).addTo(map);
+        // Callback function for Google Maps API
+        // This function will be called once the Google Maps API script is loaded.
+        function initMap() {
+            // Ensure DOM is ready, though for 'callback' this is usually implicitly handled
+            document.addEventListener('DOMContentLoaded', function() {
+                const mapPlaceholder = document.querySelector('.map-placeholder');
+                if (mapPlaceholder) {
+                    mapPlaceholder.style.display = 'none'; // Hide placeholder once map initializes
+                }
 
+                const defaultLatLng = { lat: 50.4501, lng: 30.5234 }; // Kyiv coordinates
+
+                map = new google.maps.Map(document.getElementById('map'), {
+                    center: defaultLatLng,
+                    zoom: 6,
+                    mapTypeId: 'roadmap' // Can be 'roadmap', 'satellite', 'hybrid', 'terrain'
+                });
+
+                // Add click listener to the map
+                map.addListener("click", (e) => {
+                    const clickedLat = e.latLng.lat();
+                    const clickedLon = e.latLng.lng();
+                    document.getElementById('latInput').value = clickedLat.toFixed(6);
+                    document.getElementById('lonInput').value = clickedLon.toFixed(6);
+                    validateInput();
+                    convertLatLonToAll(); // Automatically convert after click
+                });
+
+                console.log("Google Maps initialized.");
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
             // Define WGS84 projection for proj4js
-            // This needs to be done AFTER proj4.js is loaded
             if (typeof proj4 !== 'undefined') {
                 proj4.defs("EPSG:4326", "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs");
             } else {
@@ -465,7 +493,7 @@
                 showTemporaryMessage("Помилка: Бібліотека Proj4js не завантажена. Конвертація UTM може не працювати.", 'error');
             }
 
-            // Add event listeners
+            // Add event listeners for input validation
             document.getElementById('latInput').addEventListener('input', validateInput);
             document.getElementById('lonInput').addEventListener('input', validateInput);
             document.getElementById('mgrsInput').addEventListener('input', validateMGRSInput);
@@ -473,6 +501,7 @@
             document.getElementById('utmEastingInput').addEventListener('input', validateUTMInput);
             document.getElementById('utmNorthingInput').addEventListener('input', validateUTMInput);
 
+            // Add event listeners for Enter keypress
             document.getElementById('latInput').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') convertLatLonToAll();
             });
@@ -575,7 +604,6 @@
 
         function validateMGRSInput() {
             const mgrsInput = document.getElementById('mgrsInput').value.trim().toUpperCase();
-            // Basic MGRS pattern: 1-2 digits (zone), 1 letter (latitude band), 2 letters (100km square), 2-10 digits (easting/northing)
             const mgrsPattern = /^[0-9]{1,2}[A-Z][A-Z]{2}[0-9]{2,10}$/;
 
             if (mgrsInput) {
@@ -608,7 +636,6 @@
 
             if (easting) {
                 const eastingNum = parseFloat(easting);
-                // UTM Easting typically between 100,000 and 900,000
                 if (isNaN(eastingNum) || eastingNum < 100000 || eastingNum > 900000) {
                     document.getElementById('utmEastingInput').style.borderColor = '#e74c3c';
                 } else {
@@ -620,8 +647,7 @@
 
             if (northing) {
                 const northingNum = parseFloat(northing);
-                // UTM Northing range depends on hemisphere, but generally large positive numbers
-                if (isNaN(northingNum) || northingNum < 0 || northingNum > 10000000) { // Approx max northing
+                if (isNaN(northingNum) || northingNum < 0 || northingNum > 10000000) {
                     document.getElementById('utmNorthingInput').style.borderColor = '#e74c3c';
                 } else {
                     document.getElementById('utmNorthingInput').style.borderColor = '#27ae60';
@@ -635,10 +661,6 @@
 
         function getUtmProjString(zone, hemisphere) {
             const zoneNum = parseInt(zone);
-            // Proj4js doesn't directly use 'N' or 'S' for hemisphere in the proj string,
-            // it's implied by the false northing.
-            // For northern hemisphere, false northing is 0.
-            // For southern hemisphere, false northing is 10,000,000.
             const south = hemisphere.toUpperCase() === 'S' ? ' +south' : '';
             return `+proj=utm +zone=${zoneNum} +ellps=WGS84 +datum=WGS84 +units=m +no_defs${south}`;
         }
@@ -647,7 +669,7 @@
             const lat = parseFloat(document.getElementById('latInput').value);
             const lon = parseFloat(document.getElementById('lonInput').value);
 
-            if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
                 showResult('Будь ласка, введіть дійсні координати Lat/Lon (-90 до 90, -180 до 180).', true);
                 return;
             }
@@ -657,7 +679,6 @@
             }
 
             try {
-                // Determine UTM zone and hemisphere for proj4js conversion
                 const zone = Math.floor((lon + 180) / 6) + 1;
                 const hemisphere = lat >= 0 ? 'N' : 'S';
 
@@ -671,7 +692,7 @@
                     <p><strong>Northing:</strong> ${northing.toFixed(2)} ${addCopyButton(northing.toFixed(2), 'Копіювати')}</p>
                 `;
                 showResult(result);
-                showOnMap(lat, lon); // Show on map after successful conversion
+                showOnMap(lat, lon);
             } catch (error) {
                 console.error("UTM Conversion Error:", error);
                 showResult(`Помилка конвертації Lat/Lon в UTM: ${error.message}`, true);
@@ -682,7 +703,7 @@
             const lat = parseFloat(document.getElementById('latInput').value);
             const lon = parseFloat(document.getElementById('lonInput').value);
 
-            if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
                 showResult('Будь ласка, введіть дійсні координати Lat/Lon (-90 до 90, -180 до 180).', true);
                 return;
             }
@@ -692,14 +713,13 @@
             }
 
             try {
-                // Use the mgrs.js library for MGRS conversion
-                const mgrsCoord = mgrs.forward([lon, lat], 5); // 5 for 1-meter precision by default
+                const mgrsCoord = mgrs.forward([lon, lat], 5);
                 const result = `
                     <h3>MGRS координати:</h3>
                     <p><strong>MGRS:</strong> ${mgrsCoord} ${addCopyButton(mgrsCoord, 'Копіювати')}</p>
                 `;
                 showResult(result);
-                showOnMap(lat, lon); // Show on map after successful conversion
+                showOnMap(lat, lon);
             } catch (error) {
                 console.error("MGRS Conversion Error (LatLon to MGRS):", error);
                 showResult(`Помилка конвертації Lat/Lon в MGRS: ${error.message}`, true);
@@ -710,7 +730,7 @@
             const lat = parseFloat(document.getElementById('latInput').value);
             const lon = parseFloat(document.getElementById('lonInput').value);
 
-            if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
                 showResult('Будь ласка, введіть дійсні координати Lat/Lon (-90 до 90, -180 до 180).', true);
                 return;
             }
@@ -737,7 +757,7 @@
                     <p><strong>MGRS:</strong> ${mgrsCoord} ${addCopyButton(mgrsCoord, 'Копіювати')}</p>
                 `;
                 showResult(result);
-                showOnMap(lat, lon); // Show on map after successful conversion
+                showOnMap(lat, lon);
             } catch (error) {
                 console.error("All Conversions Error:", error);
                 showResult(`Помилка конвертації: ${error.message}`, true);
@@ -748,7 +768,7 @@
             const lat = parseFloat(document.getElementById('latInput').value);
             const lon = parseFloat(document.getElementById('lonInput').value);
 
-            if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
                 showResult('Будь ласка, введіть дійсні координати Lat/Lon (-90 до 90, -180 до 180).', true);
                 return;
             }
@@ -759,14 +779,13 @@
 
             try {
                 let result = '<h3>MGRS з різною точністю:</h3>';
-                // Precision in MGRS is 0-5. 0 for 100km, 1 for 10km, ..., 5 for 1m
                 for (let precision = 0; precision <= 5; precision++) {
                     const mgrsCoord = mgrs.forward([lon, lat], precision);
                     const resolutionText = ['100км', '10км', '1км', '100м', '10м', '1м'][precision];
                     result += `<p><strong>${resolutionText} (${precision} цифр):</strong> ${mgrsCoord} ${addCopyButton(mgrsCoord, 'Копіювати')}</p>`;
                 }
                 showResult(result);
-                showOnMap(lat, lon); // Show on map after successful conversion
+                showOnMap(lat, lon);
             } catch (error) {
                 console.error("MGRS All Precisions Conversion Error:", error);
                 showResult(`Помилка конвертації Lat/Lon в MGRS (всі точності): ${error.message}`, true);
@@ -800,7 +819,7 @@
                 const utmProj = proj4(getUtmProjString(zoneNum, hemisphere));
                 const [lon, lat] = utmProj.inverse([easting, northing]);
 
-                if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
                     showResult('Отримані Lat/Lon координати поза допустимими межами. Перевірте ввід UTM.', true);
                     return;
                 }
@@ -811,7 +830,7 @@
                     <p><strong>Довгота:</strong> ${lon.toFixed(6)}° ${addCopyButton(lon.toFixed(6), 'Копіювати')}</p>
                 `;
                 showResult(result);
-                showOnMap(lat, lon); // Show on map after successful conversion
+                showOnMap(lat, lon);
             } catch (error) {
                 console.error("UTM to LatLon Conversion Error:", error);
                 showResult(`Помилка конвертації UTM в Lat/Lon: ${error.message}`, true);
@@ -830,7 +849,6 @@
                 return;
             }
             
-            // Basic MGRS pattern validation (more robust validation is inside mgrs.js)
             const mgrsPattern = /^[0-9]{1,2}[A-Z][A-Z]{2}[0-9]*$/;
             if (!mgrsPattern.test(mgrsCoord)) {
                 showResult('Некоректний формат MGRS (наприклад, 36UYA1234567890).', true);
@@ -838,10 +856,9 @@
             }
 
             try {
-                // Use the mgrs.js library for MGRS to Lat/Lon conversion
                 const [lon, lat] = mgrs.inverse(mgrsCoord);
 
-                if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
                     showResult('Отримані Lat/Lon координати поза допустимими межами. Перевірте ввід MGRS.', true);
                     return;
                 }
@@ -852,7 +869,7 @@
                     <p><strong>Довгота:</strong> ${lon.toFixed(6)}° ${addCopyButton(lon.toFixed(6), 'Копіювати')}</p>
                 `;
                 showResult(result);
-                showOnMap(lat, lon); // Show on map after successful conversion
+                showOnMap(lat, lon);
             } catch (error) {
                 console.error("MGRS to LatLon Conversion Error:", error);
                 showResult(`Помилка конвертації MGRS в Lat/Lon: ${error.message}`, true);
@@ -865,21 +882,21 @@
             document.getElementById('latInput').value = '50.4501';
             document.getElementById('lonInput').value = '30.5234';
             validateInput();
-            convertLatLonToAll(); // Automatically convert and show on map
+            convertLatLonToAll();
         }
 
         function setLvivCoordinates() {
             document.getElementById('latInput').value = '49.8397';
             document.getElementById('lonInput').value = '24.0297';
             validateInput();
-            convertLatLonToAll(); // Automatically convert and show on map
+            convertLatLonToAll();
         }
 
         function setOdesaCoordinates() {
             document.getElementById('latInput').value = '46.4825';
             document.getElementById('lonInput').value = '30.7233';
             validateInput();
-            convertLatLonToAll(); // Automatically convert and show on map
+            convertLatLonToAll();
         }
 
         function clearInputs() {
@@ -901,50 +918,23 @@
 
             // Remove marker from map
             if (currentMarker) {
-                map.removeLayer(currentMarker);
+                currentMarker.setMap(null); // Remove Google Maps marker
                 currentMarker = null;
             }
-             // Show the map placeholder again
-             document.querySelector('.map-placeholder').style.display = 'flex';
+            // Show the map placeholder again
+            document.querySelector('.map-placeholder').style.display = 'flex';
         }
 
         function showOnMapFromInputs() {
             const lat = parseFloat(document.getElementById('latInput').value);
             const lon = parseFloat(document.getElementById('lonInput').value);
 
-            if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
                 showResult('Спочатку введіть дійсні Lat/Lon координати, щоб показати їх на карті.', true);
                 return;
             }
             showOnMap(lat, lon);
             showResult(`Координати ${lat.toFixed(6)}, ${lon.toFixed(6)} відображено на карті`);
-        }
-
-        // Function to display marker on the map
-        function showOnMap(lat, lon) {
-            if (!map) {
-                showResult('Карта не ініціалізована. Спробуйте оновити сторінку.', true);
-                return;
-            }
-
-            // Remove previous marker
-            if (currentMarker) {
-                map.removeLayer(currentMarker);
-            }
-
-            // Create new marker
-            currentMarker = L.marker([lat, lon]).addTo(map);
-            currentMarker.bindPopup(`
-                <b>Координати:</b><br>
-                Широта: ${lat.toFixed(6)}°<br>
-                Довгота: ${lon.toFixed(6)}°
-            `).openPopup();
-
-            // Center map on marker and zoom
-            map.setView([lat, lon], 13);
-
-            // Hide the placeholder
-            document.querySelector('.map-placeholder').style.display = 'none';
         }
 
         function getCurrentLocation() {
@@ -966,7 +956,6 @@
                     document.getElementById('latInput').value = lat.toFixed(6);
                     document.getElementById('lonInput').value = lon.toFixed(6);
 
-                    // Automatically convert and show all formats
                     convertLatLonToAll();
 
                     button.textContent = originalText;
