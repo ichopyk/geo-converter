@@ -4,14 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Конвертер координат Lat/Lon ↔ UTM ↔ MGRS</title>
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-    <!-- Leaflet JavaScript -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <!-- MGRS Converter (через jsDelivr CDN) -->
-    <script src="https://cdn.jsdelivr.net/npm/mgrs@1.0.0/mgrs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
     <style>
         * {
@@ -458,6 +450,185 @@
     </div>
     
     <script>
+
+function convertLatLonToUTM() {
+    const lat = parseFloat(document.getElementById('latInput').value);
+    const lon = parseFloat(document.getElementById('lonInput').value);
+    
+    if (isNaN(lat) || isNaN(lon)) {
+        showResult('Будь ласка, введіть правильні координати', true);
+        return;
+    }
+    
+    try {
+        const utm = mgrsConverter.latLonToUTM(lat, lon);
+        const result = `
+            <h3>UTM координати:</h3>
+            <p><strong>Зона:</strong> ${utm.zone}${utm.hemisphere} ${addCopyButton(utm.zone + utm.hemisphere, 'Копіювати')}</p>
+            <p><strong>Easting:</strong> ${utm.easting.toFixed(2)} ${addCopyButton(utm.easting.toFixed(2), 'Копіювати')}</p>
+            <p><strong>Northing:</strong> ${utm.northing.toFixed(2)} ${addCopyButton(utm.northing.toFixed(2), 'Копіювати')}</p>
+        `;
+        showResult(result);
+    } catch (error) {
+        showResult(`Помилка: ${error.message}`, true);
+    }
+}
+
+function convertLatLonToMGRS() {
+    const lat = parseFloat(document.getElementById('latInput').value);
+    const lon = parseFloat(document.getElementById('lonInput').value);
+    
+    if (isNaN(lat) || isNaN(lon)) {
+        showResult('Будь ласка, введіть правильні координати', true);
+        return;
+    }
+    
+    try {
+        const mgrs = mgrsConverter.latLonToMGRS(lat, lon, 5);
+        const result = `
+            <h3>MGRS координати:</h3>
+            <p><strong>MGRS:</strong> ${mgrs} ${addCopyButton(mgrs, 'Копіювати')}</p>
+        `;
+        showResult(result);
+    } catch (error) {
+        showResult(`Помилка: ${error.message}`, true);
+    }
+}
+
+function convertLatLonToAll() {
+    const lat = parseFloat(document.getElementById('latInput').value);
+    const lon = parseFloat(document.getElementById('lonInput').value);
+    
+    if (isNaN(lat) || isNaN(lon)) {
+        showResult('Будь ласка, введіть правильні координати', true);
+        return;
+    }
+    
+    try {
+        const utm = mgrsConverter.latLonToUTM(lat, lon);
+        const mgrs = mgrsConverter.latLonToMGRS(lat, lon, 5);
+        
+        const result = `
+            <h3>Всі формати координат:</h3>
+            <p><strong>UTM:</strong> ${utm.zone}${utm.hemisphere} ${utm.easting.toFixed(2)} ${utm.northing.toFixed(2)} ${addCopyButton(utm.zone + utm.hemisphere + ' ' + utm.easting.toFixed(2) + ' ' + utm.northing.toFixed(2), 'Копіювати')}</p>
+            <p><strong>MGRS:</strong> ${mgrs} ${addCopyButton(mgrs, 'Копіювати')}</p>
+        `;
+        showResult(result);
+    } catch (error) {
+        showResult(`Помилка: ${error.message}`, true);
+    }
+}
+
+function convertLatLonToAllPrecisions() {
+    const lat = parseFloat(document.getElementById('latInput').value);
+    const lon = parseFloat(document.getElementById('lonInput').value);
+    
+    if (isNaN(lat) || isNaN(lon)) {
+        showResult('Будь ласка, введіть правильні координати', true);
+        return;
+    }
+    
+    try {
+        let result = '<h3>MGRS з різною точністю:</h3>';
+        for (let precision = 1; precision <= 5; precision++) {
+            const mgrs = mgrsConverter.latLonToMGRS(lat, lon, precision);
+            result += `<p><strong>${precision} цифр:</strong> ${mgrs} ${addCopyButton(mgrs, 'Копіювати')}</p>`;
+        }
+        showResult(result);
+    } catch (error) {
+        showResult(`Помилка: ${error.message}`, true);
+    }
+}
+
+function convertUTMToLatLon() {
+    const zoneStr = document.getElementById('utmZoneInput').value.trim();
+    const easting = parseFloat(document.getElementById('utmEastingInput').value);
+    const northing = parseFloat(document.getElementById('utmNorthingInput').value);
+    
+    if (!zoneStr || isNaN(easting) || isNaN(northing)) {
+        showResult('Будь ласка, введіть всі UTM координати', true);
+        return;
+    }
+    
+    try {
+        const zone = parseInt(zoneStr);
+        const hemisphere = zoneStr.slice(-1).toUpperCase();
+        const [lat, lon] = mgrsConverter.utmToLatLon(easting, northing, zone, hemisphere);
+        
+        const result = `
+            <h3>Lat/Lon координати:</h3>
+            <p><strong>Широта:</strong> ${lat.toFixed(6)}° ${addCopyButton(lat.toFixed(6), 'Копіювати')}</p>
+            <p><strong>Довгота:</strong> ${lon.toFixed(6)}° ${addCopyButton(lon.toFixed(6), 'Копіювати')}</p>
+        `;
+        showResult(result);
+    } catch (error) {
+        showResult(`Помилка: ${error.message}`, true);
+    }
+}
+
+function convertMGRSToLatLon() {
+    const mgrs = document.getElementById('mgrsInput').value.trim();
+    
+    if (!mgrs) {
+        showResult('Будь ласка, введіть MGRS координати', true);
+        return;
+    }
+    
+    try {
+        const [lat, lon] = mgrsConverter.mgrsToLatLon(mgrs);
+        
+        const result = `
+            <h3>Lat/Lon координати:</h3>
+            <p><strong>Широта:</strong> ${lat.toFixed(6)}° ${addCopyButton(lat.toFixed(6), 'Копіювати')}</p>
+            <p><strong>Довгота:</strong> ${lon.toFixed(6)}° ${addCopyButton(lon.toFixed(6), 'Копіювати')}</p>
+        `;
+        showResult(result);
+    } catch (error) {
+        showResult(`Помилка: ${error.message}`, true);
+    }
+}
+
+function setKyivCoordinates() {
+    document.getElementById('latInput').value = '50.4501';
+    document.getElementById('lonInput').value = '30.5234';
+    validateInput();
+}
+
+function setLvivCoordinates() {
+    document.getElementById('latInput').value = '49.8397';
+    document.getElementById('lonInput').value = '24.0297';
+    validateInput();
+}
+
+function setOdesaCoordinates() {
+    document.getElementById('latInput').value = '46.4825';
+    document.getElementById('lonInput').value = '30.7233';
+    validateInput();
+}
+
+function clearInputs() {
+    document.getElementById('latInput').value = '';
+    document.getElementById('lonInput').value = '';
+    document.getElementById('mgrsInput').value = '';
+    document.getElementById('utmZoneInput').value = '';
+    document.getElementById('utmEastingInput').value = '';
+    document.getElementById('utmNorthingInput').value = '';
+    document.getElementById('result').style.display = 'none';
+}
+
+function showOnMap() {
+    const lat = parseFloat(document.getElementById('latInput').value);
+    const lon = parseFloat(document.getElementById('lonInput').value);
+    
+    if (isNaN(lat) || isNaN(lon)) {
+        showResult('Спочатку введіть координати', true);
+        return;
+    }
+    
+    // Тут може бути логіка для відображення на карті
+    showResult(`Координати ${lat.toFixed(6)}, ${lon.toFixed(6)} готові для відображення на карті`);
+}
+
         // Власна реалізація MGRS конвертації
         class MGRSConverter {
             constructor() {
@@ -909,11 +1080,25 @@ function initMap() {
 }
 
 <!-- Google Maps API (встав свій API ключ!) -->
-    <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap">
+    <script>
+// Ініціалізація карти Leaflet
+document.addEventListener('DOMContentLoaded', function() {
+    // Створення карти
+    const map = L.map('map').setView([50.4501, 30.5234], 6);
+    
+    // Додавання тайлів OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    // Збереження карти в глобальній змінній
+    window.leafletMap = map;
+});
     </script>
 </body>
 </html>
+
+
 
 
 
