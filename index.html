@@ -456,6 +456,15 @@
                 attribution: '© OpenStreetMap contributors'
             }).addTo(map);
 
+            // Define WGS84 projection for proj4js
+            // This needs to be done AFTER proj4.js is loaded
+            if (typeof proj4 !== 'undefined') {
+                proj4.defs("EPSG:4326", "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs");
+            } else {
+                console.error("Proj4js library not loaded!");
+                showTemporaryMessage("Помилка: Бібліотека Proj4js не завантажена. Конвертація UTM може не працювати.", 'error');
+            }
+
             // Add event listeners
             document.getElementById('latInput').addEventListener('input', validateInput);
             document.getElementById('lonInput').addEventListener('input', validateInput);
@@ -565,12 +574,12 @@
         }
 
         function validateMGRSInput() {
-            const mgrs = document.getElementById('mgrsInput').value.trim().toUpperCase();
+            const mgrsInput = document.getElementById('mgrsInput').value.trim().toUpperCase();
             // Basic MGRS pattern: 1-2 digits (zone), 1 letter (latitude band), 2 letters (100km square), 2-10 digits (easting/northing)
             const mgrsPattern = /^[0-9]{1,2}[A-Z][A-Z]{2}[0-9]{2,10}$/;
 
-            if (mgrs) {
-                if (mgrsPattern.test(mgrs)) {
+            if (mgrsInput) {
+                if (mgrsPattern.test(mgrsInput)) {
                     document.getElementById('mgrsInput').style.borderColor = '#27ae60';
                 } else {
                     document.getElementById('mgrsInput').style.borderColor = '#e74c3c';
@@ -624,9 +633,6 @@
 
         // --- Conversion Functions (using mgrs.js and proj4.js) ---
 
-        // Define WGS84 projection for proj4js
-        proj4.defs("EPSG:4326", "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs");
-
         function getUtmProjString(zone, hemisphere) {
             const zoneNum = parseInt(zone);
             // Proj4js doesn't directly use 'N' or 'S' for hemisphere in the proj string,
@@ -645,10 +651,13 @@
                 showResult('Будь ласка, введіть дійсні координати Lat/Lon (-90 до 90, -180 до 180).', true);
                 return;
             }
+            if (typeof proj4 === 'undefined') {
+                showResult('Помилка: Бібліотека Proj4js не завантажена. Конвертація UTM неможлива.', true);
+                return;
+            }
 
             try {
                 // Determine UTM zone and hemisphere for proj4js conversion
-                // A common way to get UTM zone is (longitude + 180) / 6, rounded up
                 const zone = Math.floor((lon + 180) / 6) + 1;
                 const hemisphere = lat >= 0 ? 'N' : 'S';
 
@@ -664,6 +673,7 @@
                 showResult(result);
                 showOnMap(lat, lon); // Show on map after successful conversion
             } catch (error) {
+                console.error("UTM Conversion Error:", error);
                 showResult(`Помилка конвертації Lat/Lon в UTM: ${error.message}`, true);
             }
         }
@@ -674,6 +684,10 @@
 
             if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
                 showResult('Будь ласка, введіть дійсні координати Lat/Lon (-90 до 90, -180 до 180).', true);
+                return;
+            }
+            if (typeof mgrs === 'undefined') {
+                showResult('Помилка: Бібліотека MGRS не завантажена. Конвертація MGRS неможлива.', true);
                 return;
             }
 
@@ -687,6 +701,7 @@
                 showResult(result);
                 showOnMap(lat, lon); // Show on map after successful conversion
             } catch (error) {
+                console.error("MGRS Conversion Error (LatLon to MGRS):", error);
                 showResult(`Помилка конвертації Lat/Lon в MGRS: ${error.message}`, true);
             }
         }
@@ -697,6 +712,10 @@
 
             if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
                 showResult('Будь ласка, введіть дійсні координати Lat/Lon (-90 до 90, -180 до 180).', true);
+                return;
+            }
+            if (typeof proj4 === 'undefined' || typeof mgrs === 'undefined') {
+                showResult('Помилка: Не всі бібліотеки завантажені. Конвертація неможлива.', true);
                 return;
             }
 
@@ -720,6 +739,7 @@
                 showResult(result);
                 showOnMap(lat, lon); // Show on map after successful conversion
             } catch (error) {
+                console.error("All Conversions Error:", error);
                 showResult(`Помилка конвертації: ${error.message}`, true);
             }
         }
@@ -730,6 +750,10 @@
 
             if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
                 showResult('Будь ласка, введіть дійсні координати Lat/Lon (-90 до 90, -180 до 180).', true);
+                return;
+            }
+            if (typeof mgrs === 'undefined') {
+                showResult('Помилка: Бібліотека MGRS не завантажена. Конвертація MGRS неможлива.', true);
                 return;
             }
 
@@ -744,6 +768,7 @@
                 showResult(result);
                 showOnMap(lat, lon); // Show on map after successful conversion
             } catch (error) {
+                console.error("MGRS All Precisions Conversion Error:", error);
                 showResult(`Помилка конвертації Lat/Lon в MGRS (всі точності): ${error.message}`, true);
             }
         }
@@ -755,6 +780,10 @@
 
             if (!zoneStr || isNaN(easting) || isNaN(northing)) {
                 showResult('Будь ласка, введіть всі UTM координати (Зона, Easting, Northing).', true);
+                return;
+            }
+            if (typeof proj4 === 'undefined') {
+                showResult('Помилка: Бібліотека Proj4js не завантажена. Конвертація UTM неможлива.', true);
                 return;
             }
 
@@ -784,6 +813,7 @@
                 showResult(result);
                 showOnMap(lat, lon); // Show on map after successful conversion
             } catch (error) {
+                console.error("UTM to LatLon Conversion Error:", error);
                 showResult(`Помилка конвертації UTM в Lat/Lon: ${error.message}`, true);
             }
         }
@@ -795,6 +825,10 @@
                 showResult('Будь ласка, введіть MGRS координати.', true);
                 return;
             }
+            if (typeof mgrs === 'undefined') {
+                showResult('Помилка: Бібліотека MGRS не завантажена. Конвертація MGRS неможлива.', true);
+                return;
+            }
             
             // Basic MGRS pattern validation (more robust validation is inside mgrs.js)
             const mgrsPattern = /^[0-9]{1,2}[A-Z][A-Z]{2}[0-9]*$/;
@@ -802,7 +836,6 @@
                 showResult('Некоректний формат MGRS (наприклад, 36UYA1234567890).', true);
                 return;
             }
-
 
             try {
                 // Use the mgrs.js library for MGRS to Lat/Lon conversion
@@ -821,6 +854,7 @@
                 showResult(result);
                 showOnMap(lat, lon); // Show on map after successful conversion
             } catch (error) {
+                console.error("MGRS to LatLon Conversion Error:", error);
                 showResult(`Помилка конвертації MGRS в Lat/Lon: ${error.message}`, true);
             }
         }
@@ -870,6 +904,8 @@
                 map.removeLayer(currentMarker);
                 currentMarker = null;
             }
+             // Show the map placeholder again
+             document.querySelector('.map-placeholder').style.display = 'flex';
         }
 
         function showOnMapFromInputs() {
