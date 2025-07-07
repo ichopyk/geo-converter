@@ -7,7 +7,10 @@
 
     <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap"></script>
 
-    <script src="mgrs.min.js"></script> <script src="proj4.js"></script>   <style>
+    <script src="mgrs.min.js"></script>
+    <script src="proj4.js"></script>
+    
+    <style>
         /* Весь ваш CSS код залишається без змін */
         * {
             margin: 0;
@@ -456,24 +459,463 @@
                 document.getElementById('latInput').value = clickedLat.toFixed(6);
                 document.getElementById('lonInput').value = clickedLon.toFixed(6);
                 validateInput();
-                convertLatLonToAll(); // Автоматична конвертація по кліку
+                convertLatLonToAll(); // Автоматична конвертація після кліку
             });
 
             console.log("Google Maps initialized.");
         }
 
-        // Всі інші JavaScript-функції можуть залишатися в DOMContentLoaded,
-        // або бути оголошеними до нього, якщо вони є глобальними.
+        // --- Основні функції: Переміщені до ГЛОБАЛЬНОЇ області видимості ---
+        // Вони повинні бути доступні для onclick атрибутів HTML-кнопок.
+
+        // Допоміжні функції
+        function showResult(content, isError = false) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = content;
+            resultDiv.style.display = 'block';
+            if (isError) {
+                resultDiv.className = 'result-section error-message';
+            } else {
+                resultDiv.className = 'result-section';
+            }
+        }
+
+        function addCopyButton(text, label) {
+            return `<button class="copy-btn" onclick="copyToClipboard('${text}')">${label}</button>`;
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                showTemporaryMessage('Скопійовано!', 'success');
+            }, function() {
+                showTemporaryMessage('Помилка копіювання', 'error');
+            });
+        }
+
+        function showTemporaryMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'success' ? 'success-message' : 'error-message';
+            messageDiv.textContent = message;
+            messageDiv.style.position = 'fixed';
+            messageDiv.style.top = '20px';
+            messageDiv.style.right = '20px';
+            messageDiv.style.zIndex = '9999';
+            messageDiv.style.padding = '10px 20px';
+            messageDiv.style.borderRadius = '8px';
+            messageDiv.style.fontSize = '14px';
+            messageDiv.style.fontWeight = '600';
+            document.body.appendChild(messageDiv);
+            setTimeout(() => {
+                document.body.removeChild(messageDiv);
+            }, 3000);
+        }
+
+        // Функції валідації
+        function validateInput() {
+            const lat = document.getElementById('latInput').value;
+            const lon = document.getElementById('lonInput').value;
+            if (lat) {
+                const latNum = parseFloat(lat);
+                if (isNaN(latNum) || latNum < -90 || latNum > 90) {
+                    document.getElementById('latInput').style.borderColor = '#e74c3c';
+                } else {
+                    document.getElementById('latInput').style.borderColor = '#27ae60';
+                }
+            } else {
+                document.getElementById('latInput').style.borderColor = '#e0e0e0';
+            }
+            if (lon) {
+                const lonNum = parseFloat(lon);
+                if (isNaN(lonNum) || lonNum < -180 || lonNum > 180) {
+                    document.getElementById('lonInput').style.borderColor = '#e74c3c';
+                } else {
+                    document.getElementById('lonInput').style.borderColor = '#27ae60';
+                }
+            } else {
+                document.getElementById('lonInput').style.borderColor = '#e0e0e0';
+            }
+        }
+
+        function validateMGRSInput() {
+            const mgrsInput = document.getElementById('mgrsInput').value.trim().toUpperCase();
+            const mgrsPattern = /^[0-9]{1,2}[A-Z][A-Z]{2}[0-9]{2,10}$/;
+            if (mgrsInput) {
+                if (mgrsPattern.test(mgrsInput)) {
+                    document.getElementById('mgrsInput').style.borderColor = '#27ae60';
+                } else {
+                    document.getElementById('mgrsInput').style.borderColor = '#e74c3c';
+                }
+            } else {
+                document.getElementById('mgrsInput').style.borderColor = '#e0e0e0';
+            }
+        }
+
+        function validateUTMInput() {
+            const zone = document.getElementById('utmZoneInput').value.trim();
+            const easting = parseFloat(document.getElementById('utmEastingInput').value);
+            const northing = parseFloat(document.getElementById('utmNorthingInput').value);
+            const zonePattern = /^[0-9]{1,2}[NnSs]$/;
+            if (zone) {
+                if (zonePattern.test(zone)) {
+                    document.getElementById('utmZoneInput').style.borderColor = '#27ae60';
+                } else {
+                    document.getElementById('utmZoneInput').style.borderColor = '#e74c3c';
+                }
+            } else {
+                document.getElementById('utmZoneInput').style.borderColor = '#e0e0e0';
+            }
+            if (easting) {
+                const eastingNum = parseFloat(easting);
+                if (isNaN(eastingNum) || eastingNum < 100000 || eastingNum > 900000) {
+                    document.getElementById('utmEastingInput').style.borderColor = '#e74c3c';
+                } else {
+                    document.getElementById('utmEastingInput').style.borderColor = '#27ae60';
+                }
+            } else {
+                document.getElementById('utmEastingInput').style.borderColor = '#e0e0e0';
+            }
+            if (northing) {
+                const northingNum = parseFloat(northing);
+                if (isNaN(northingNum) || northingNum < 0 || northingNum > 10000000) {
+                    document.getElementById('utmNorthingInput').style.borderColor = '#e74c3c';
+                } else {
+                    document.getElementById('utmNorthingInput').style.borderColor = '#27ae60';
+                }
+            } else {
+                document.getElementById('utmNorthingInput').style.borderColor = '#e0e0e0';
+            }
+        }
+
+        // Функції конвертації
+        function getUtmProjString(zone, hemisphere) {
+            const zoneNum = parseInt(zone);
+            const south = hemisphere.toUpperCase() === 'S' ? ' +south' : '';
+            return `+proj=utm +zone=${zoneNum} +ellps=WGS84 +datum=WGS84 +units=m +no_defs${south}`;
+        }
+
+        function convertLatLonToUTM() {
+            console.log("convertLatLonToUTM called"); // Для налагодження
+            const lat = parseFloat(document.getElementById('latInput').value);
+            const lon = parseFloat(document.getElementById('lonInput').value);
+            if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
+                showResult('Будь ласка, введіть дійсні координати Lat/Lon (-90 до 90, -180 до 180).', true);
+                console.warn("Invalid Lat/Lon for UTM conversion");
+                return;
+            }
+            if (typeof proj4 === 'undefined') {
+                showResult('Помилка: Бібліотека Proj4js не завантажена. Конвертація UTM неможлива.', true);
+                console.error("Proj4js library is undefined in convertLatLonToUTM");
+                return;
+            }
+            try {
+                console.log("Attempting UTM conversion for:", lat, lon);
+                const zone = Math.floor((lon + 180) / 6) + 1;
+                const hemisphere = lat >= 0 ? 'N' : 'S';
+                const utmProj = proj4(getUtmProjString(zone, hemisphere));
+                const [easting, northing] = utmProj.forward([lon, lat]);
+                const result = `
+                    <h3>UTM координати:</h3>
+                    <p><strong>Зона:</strong> ${zone}${hemisphere} ${addCopyButton(`${zone}${hemisphere}`, 'Копіювати')}</p>
+                    <p><strong>Easting:</strong> ${easting.toFixed(2)} ${addCopyButton(easting.toFixed(2), 'Копіювати')}</p>
+                    <p><strong>Northing:</strong> ${northing.toFixed(2)} ${addCopyButton(northing.toFixed(2), 'Копіювати')}</p>
+                `;
+                showResult(result);
+                showOnMap(lat, lon);
+            } catch (error) {
+                console.error("UTM Conversion Error:", error);
+                showResult(`Помилка конвертації Lat/Lon в UTM: ${error.message}`, true);
+            }
+        }
+
+        function convertLatLonToMGRS() {
+            console.log("convertLatLonToMGRS called"); // Для налагодження
+            const lat = parseFloat(document.getElementById('latInput').value);
+            const lon = parseFloat(document.getElementById('lonInput').value);
+            if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
+                showResult('Будь ласка, введіть дійсні координати Lat/Lon (-90 до 90, -180 до 180).', true);
+                console.warn("Invalid Lat/Lon for MGRS conversion");
+                return;
+            }
+            if (typeof mgrs === 'undefined') {
+                showResult('Помилка: Бібліотека MGRS не завантажена. Конвертація MGRS неможлива.', true);
+                console.error("MGRS library is undefined in convertLatLonToMGRS");
+                return;
+            }
+            try {
+                console.log("Attempting MGRS conversion for:", lat, lon);
+                const mgrsCoord = mgrs.forward([lon, lat], 5);
+                const result = `
+                    <h3>MGRS координати:</h3>
+                    <p><strong>MGRS:</strong> ${mgrsCoord} ${addCopyButton(mgrsCoord, 'Копіювати')}</p>
+                `;
+                showResult(result);
+                showOnMap(lat, lon);
+            } catch (error) {
+                console.error("MGRS Conversion Error (LatLon to MGRS):", error);
+                showResult(`Помилка конвертації Lat/Lon в MGRS: ${error.message}`, true);
+            }
+        }
+
+        function convertLatLonToAll() {
+            console.log("convertLatLonToAll called"); // Для налагодження
+            const lat = parseFloat(document.getElementById('latInput').value);
+            const lon = parseFloat(document.getElementById('lonInput').value);
+            if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
+                showResult('Будь ласка, введіть дійсні координати Lat/Lon (-90 до 90, -180 до 180).', true);
+                console.warn("Invalid Lat/Lon for All conversion");
+                return;
+            }
+            if (typeof proj4 === 'undefined' || typeof mgrs === 'undefined') {
+                showResult('Помилка: Не всі бібліотеки завантажені. Конвертація неможлива.', true);
+                console.error("One or both libraries (Proj4js, MGRS) are undefined in convertLatLonToAll");
+                return;
+            }
+            try {
+                console.log("Attempting All conversions for:", lat, lon);
+                // UTM
+                const zone = Math.floor((lon + 180) / 6) + 1;
+                const hemisphere = lat >= 0 ? 'N' : 'S';
+                const utmProj = proj4(getUtmProjString(zone, hemisphere));
+                const [easting, northing] = utmProj.forward([lon, lat]);
+                // MGRS
+                const mgrsCoord = mgrs.forward([lon, lat], 5);
+                const result = `
+                    <h3>Всі формати координат:</h3>
+                    <p><strong>Широта:</strong> ${lat.toFixed(6)}° ${addCopyButton(lat.toFixed(6), 'Копіювати')}</p>
+                    <p><strong>Довгота:</strong> ${lon.toFixed(6)}° ${addCopyButton(lon.toFixed(6), 'Копіювати')}</p>
+                    <p><strong>UTM:</strong> ${zone}${hemisphere} ${easting.toFixed(2)} ${northing.toFixed(2)} ${addCopyButton(`${zone}${hemisphere} ${easting.toFixed(2)} ${northing.toFixed(2)}`, 'Копіювати')}</p>
+                    <p><strong>MGRS:</strong> ${mgrsCoord} ${addCopyButton(mgrsCoord, 'Копіювати')}</p>
+                `;
+                showResult(result);
+                showOnMap(lat, lon);
+            } catch (error) {
+                console.error("All Conversions Error:", error);
+                showResult(`Помилка конвертації: ${error.message}`, true);
+            }
+        }
+
+        function convertLatLonToAllPrecisions() {
+            console.log("convertLatLonToAllPrecisions called"); // Для налагодження
+            const lat = parseFloat(document.getElementById('latInput').value);
+            const lon = parseFloat(document.getElementById('lonInput').value);
+            if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
+                showResult('Будь ласка, введіть дійсні координати Lat/Lon (-90 до 90, -180 до 180).', true);
+                console.warn("Invalid Lat/Lon for All Precisions conversion");
+                return;
+            }
+            if (typeof mgrs === 'undefined') {
+                showResult('Помилка: Бібліотека MGRS не завантажена. Конвертація MGRS неможлива.', true);
+                console.error("MGRS library is undefined in convertLatLonToAllPrecisions");
+                return;
+            }
+            try {
+                console.log("Attempting MGRS All Precisions conversion for:", lat, lon);
+                let result = '<h3>MGRS з різною точністю:</h3>';
+                for (let precision = 0; precision <= 5; precision++) {
+                    const mgrsCoord = mgrs.forward([lon, lat], precision);
+                    const resolutionText = ['100км', '10км', '1км', '100м', '10м', '1м'][precision];
+                    result += `<p><strong>${resolutionText} (${precision} цифр):</strong> ${mgrsCoord} ${addCopyButton(mgrsCoord, 'Копіювати')}</p>`;
+                }
+                showResult(result);
+                showOnMap(lat, lon);
+            } catch (error) {
+                console.error("MGRS All Precisions Conversion Error:", error);
+                showResult(`Помилка конвертації Lat/Lon в MGRS (всі точності): ${error.message}`, true);
+            }
+        }
+
+        function convertUTMToLatLon() {
+            console.log("convertUTMToLatLon called"); // Для налагодження
+            const zoneStr = document.getElementById('utmZoneInput').value.trim();
+            const easting = parseFloat(document.getElementById('utmEastingInput').value);
+            const northing = parseFloat(document.getElementById('utmNorthingInput').value);
+            if (!zoneStr || isNaN(easting) || isNaN(northing)) {
+                showResult('Будь ласка, введіть всі UTM координати (Зона, Easting, Northing).', true);
+                console.warn("Missing UTM inputs");
+                return;
+            }
+            if (typeof proj4 === 'undefined') {
+                showResult('Помилка: Бібліотека Proj4js не завантажена. Конвертація UTM неможлива.', true);
+                console.error("Proj4js library is undefined in convertUTMToLatLon");
+                return;
+            }
+            const zoneMatch = zoneStr.match(/^(\d+)([NnSs])$/);
+            if (!zoneMatch) {
+                showResult('Некоректний формат зони UTM (наприклад, 36N або 34s).', true);
+                console.warn("Invalid UTM zone format");
+                return;
+            }
+            const zoneNum = parseInt(zoneMatch[1]);
+            const hemisphere = zoneMatch[2].toUpperCase();
+            try {
+                console.log("Attempting UTM to LatLon conversion for:", zoneStr, easting, northing);
+                const utmProj = proj4(getUtmProjString(zoneNum, hemisphere));
+                const [lon, lat] = utmProj.inverse([easting, northing]);
+                if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
+                    showResult('Отримані Lat/Lon координати поза допустимими межами. Перевірте ввід UTM.', true);
+                    console.error("Converted Lat/Lon out of bounds");
+                    return;
+                }
+                const result = `
+                    <h3>Lat/Lon координати:</h3>
+                    <p><strong>Широта:</strong> ${lat.toFixed(6)}° ${addCopyButton(lat.toFixed(6), 'Копіювати')}</p>
+                    <p><strong>Довгота:</strong> ${lon.toFixed(6)}° ${addCopyButton(lon.toFixed(6), 'Копіювати')}</p>
+                `;
+                showResult(result);
+                showOnMap(lat, lon);
+            } catch (error) {
+                console.error("UTM to LatLon Conversion Error:", error);
+                showResult(`Помилка конвертації UTM в Lat/Lon: ${error.message}`, true);
+            }
+        }
+
+        function convertMGRSToLatLon() {
+            console.log("convertMGRSToLatLon called"); // Для налагодження
+            const mgrsCoord = document.getElementById('mgrsInput').value.trim();
+            if (!mgrsCoord) {
+                showResult('Будь ласка, введіть MGRS координати.', true);
+                console.warn("Missing MGRS input");
+                return;
+            }
+            if (typeof mgrs === 'undefined') {
+                showResult('Помилка: Бібліотека MGRS не завантажена. Конвертація MGRS неможлива.', true);
+                console.error("MGRS library is undefined in convertMGRSToLatLon");
+                return;
+            }
+            const mgrsPattern = /^[0-9]{1,2}[A-Z][A-Z]{2}[0-9]*$/;
+            if (!mgrsPattern.test(mgrsCoord)) {
+                showResult('Некоректний формат MGRS (наприклад, 36UYA1234567890).', true);
+                console.warn("Invalid MGRS format");
+                return;
+            }
+            try {
+                console.log("Attempting MGRS to LatLon conversion for:", mgrsCoord);
+                const [lon, lat] = mgrs.inverse(mgrsCoord);
+                if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
+                    showResult('Отримані Lat/Lon координати поза допустимими межами. Перевірте ввід MGRS.', true);
+                    console.error("Converted Lat/Lon out of bounds from MGRS");
+                    return;
+                }
+                const result = `
+                    <h3>Lat/Lon координати:</h3>
+                    <p><strong>Широта:</strong> ${lat.toFixed(6)}° ${addCopyButton(lat.toFixed(6), 'Копіювати')}</p>
+                    <p><strong>Довгота:</strong> ${lon.toFixed(6)}° ${addCopyButton(lon.toFixed(6), 'Копіювати')}</p>
+                `;
+                showResult(result);
+                showOnMap(lat, lon);
+            } catch (error) {
+                console.error("MGRS to LatLon Conversion Error:", error);
+                showResult(`Помилка конвертації MGRS в Lat/Lon: ${error.message}`, true);
+            }
+        }
+
+        // Швидкі дії
+        function setKyivCoordinates() {
+            document.getElementById('latInput').value = '50.4501';
+            document.getElementById('lonInput').value = '30.5234';
+            validateInput();
+            convertLatLonToAll();
+        }
+
+        function setLvivCoordinates() {
+            document.getElementById('latInput').value = '49.8397';
+            document.getElementById('lonInput').value = '24.0297';
+            validateInput();
+            convertLatLonToAll();
+        }
+
+        function setOdesaCoordinates() {
+            document.getElementById('latInput').value = '46.4825';
+            document.getElementById('lonInput').value = '30.7233';
+            validateInput();
+            convertLatLonToAll();
+        }
+
+        function clearInputs() {
+            document.getElementById('latInput').value = '';
+            document.getElementById('lonInput').value = '';
+            document.getElementById('mgrsInput').value = '';
+            document.getElementById('utmZoneInput').value = '';
+            document.getElementById('utmEastingInput').value = '';
+            document.getElementById('utmNorthingInput').value = '';
+            document.getElementById('result').style.display = 'none';
+
+            document.getElementById('latInput').style.borderColor = '#e0e0e0';
+            document.getElementById('lonInput').style.borderColor = '#e0e0e0';
+            document.getElementById('mgrsInput').style.borderColor = '#e0e0e0';
+            document.getElementById('utmZoneInput').style.borderColor = '#e0e0e0';
+            document.getElementById('utmEastingInput').style.borderColor = '#e0e0e0';
+            document.getElementById('utmNorthingInput').style.borderColor = '#e0e0e0';
+
+            if (currentMarker) {
+                currentMarker.setMap(null);
+                currentMarker = null;
+            }
+            document.querySelector('.map-placeholder').style.display = 'flex';
+        }
+
+        function showOnMapFromInputs() {
+            const lat = parseFloat(document.getElementById('latInput').value);
+            const lon = parseFloat(document.getElementById('lonInput').value);
+            if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
+                showResult('Спочатку введіть дійсні Lat/Lon координати, щоб показати їх на карті.', true);
+                return;
+            }
+            showOnMap(lat, lon);
+            showResult(`Координати ${lat.toFixed(6)}, ${lon.toFixed(6)} відображено на карті`);
+        }
+
+        function getCurrentLocation() {
+            if (!navigator.geolocation) {
+                showResult('Геолокація не підтримується цим браузером', true);
+                return;
+            }
+            const button = document.querySelector('.location-btn');
+            const originalText = button.textContent;
+            button.textContent = 'Отримання...';
+            button.disabled = true;
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    document.getElementById('latInput').value = lat.toFixed(6);
+                    document.getElementById('lonInput').value = lon.toFixed(6);
+                    convertLatLonToAll();
+                    button.textContent = originalText;
+                    button.disabled = false;
+                    showTemporaryMessage('Поточне місцезнаходження отримано', 'success');
+                },
+                function(error) {
+                    let errorMessage = 'Помилка отримання геолокації';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = 'Доступ до геолокації заборонено. Будь ласка, дозвольте доступ до геолокації в налаштуваннях браузера.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = 'Місцезнаходження недоступне. Спробуйте ще раз пізніше.';
+                            break;
+                    }
+                    showResult(errorMessage, true);
+                    button.textContent = originalText;
+                    button.disabled = false;
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+
+        // --- DOMContentLoaded Listener: Тільки для приєднання слухачів подій, які потребують наявності елементів DOM ---
         document.addEventListener('DOMContentLoaded', function() {
             // Визначення WGS84 проекції для proj4js
+            // Це безпечно тут, оскільки proj4.js вже мав завантажитися.
             if (typeof proj4 !== 'undefined') {
                 proj4.defs("EPSG:4326", "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs");
+                console.log("Proj4js definitions loaded."); // Для налагодження
             } else {
-                console.error("Proj4js library not loaded!");
+                console.error("Proj4js library not loaded at DOMContentLoaded!");
                 showTemporaryMessage("Помилка: Бібліотека Proj4js не завантажена. Конвертація UTM може не працювати.", 'error');
             }
 
-            // Додавання слухачів подій для валідації вводу
+            // Приєднання слухачів подій до полів вводу
             document.getElementById('latInput').addEventListener('input', validateInput);
             document.getElementById('lonInput').addEventListener('input', validateInput);
             document.getElementById('mgrsInput').addEventListener('input', validateMGRSInput);
@@ -481,7 +923,7 @@
             document.getElementById('utmEastingInput').addEventListener('input', validateUTMInput);
             document.getElementById('utmNorthingInput').addEventListener('input', validateUTMInput);
 
-            // Додавання слухачів подій для натискання Enter
+            // Приєднання слухачів подій для натискання Enter
             document.getElementById('latInput').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') convertLatLonToAll();
             });
@@ -506,274 +948,6 @@
                 e.target.value = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '');
             });
         });
-
-        // Helper function to display results
-        function showResult(content, isError = false) {
-            const resultDiv = document.getElementById('result');
-            resultDiv.innerHTML = content;
-            resultDiv.style.display = 'block';
-
-            if (isError) {
-                resultDiv.className = 'result-section error-message';
-            } else {
-                resultDiv.className = 'result-section';
-            }
-        }
-
-        // Helper function to add copy buttons
-        function addCopyButton(text, label) {
-            return `<button class="copy-btn" onclick="copyToClipboard('${text}')">${label}</button>`;
-        }
-
-        // Helper function for copy to clipboard
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(function() {
-                showTemporaryMessage('Скопійовано!', 'success');
-            }, function() {
-                showTemporaryMessage('Помилка копіювання', 'error');
-            });
-        }
-
-        // Helper function for temporary messages
-        function showTemporaryMessage(message, type) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = type === 'success' ? 'success-message' : 'error-message';
-            messageDiv.textContent = message;
-            messageDiv.style.position = 'fixed';
-            messageDiv.style.top = '20px';
-            messageDiv.style.right = '20px';
-            messageDiv.style.zIndex = '9999';
-            messageDiv.style.padding = '10px 20px';
-            messageDiv.style.borderRadius = '8px';
-            messageDiv.style.fontSize = '14px';
-            messageDiv.style.fontWeight = '600';
-            document.body.appendChild(messageDiv);
-
-            setTimeout(() => {
-                document.body.removeChild(messageDiv);
-            }, 3000);
-        }
-
-        // Validation functions (без змін)
-        function validateInput() {
-            const lat = document.getElementById('latInput').value;
-            const lon = document.getElementById('lonInput').value;
-
-            if (lat) {
-                const latNum = parseFloat(lat);
-                if (isNaN(latNum) || latNum < -90 || latNum > 90) {
-                    document.getElementById('latInput').style.borderColor = '#e74c3c';
-                } else {
-                    document.getElementById('latInput').style.borderColor = '#27ae60';
-                }
-            } else {
-                document.getElementById('latInput').style.borderColor = '#e0e0e0';
-            }
-
-            if (lon) {
-                const lonNum = parseFloat(lon);
-                if (isNaN(lonNum) || lonNum < -180 || lonNum > 180) {
-                    document.getElementById('lonInput').style.borderColor = '#e74c3c';
-                } else {
-                    document.getElementById('lonInput').style.borderColor = '#27ae60';
-                }
-            } else {
-                document.getElementById('lonInput').style.borderColor = '#e0e0e0';
-            }
-        }
-
-        function validateMGRSInput() {
-            const mgrsInput = document.getElementById('mgrsInput').value.trim().toUpperCase();
-            const mgrsPattern = /^[0-9]{1,2}[A-Z][A-Z]{2}[0-9]{2,10}$/;
-
-            if (mgrsInput) {
-                if (mgrsPattern.test(mgrsInput)) {
-                    document.getElementById('mgrsInput').style.borderColor = '#27ae60';
-                } else {
-                    document.getElementById('mgrsInput').style.borderColor = '#e74c3c';
-                }
-            } else {
-                document.getElementById('mgrsInput').style.borderColor = '#e0e0e0';
-            }
-        }
-
-        function validateUTMInput() {
-            const zone = document.getElementById('utmZoneInput').value.trim();
-            const easting = document.getElementById('utmEastingInput').value;
-            const northing = document.getElementById('utmNorthingInput').value;
-
-            const zonePattern = /^[0-9]{1,2}[NnSs]$/;
-
-            if (zone) {
-                if (zonePattern.test(zone)) {
-                    document.getElementById('utmZoneInput').style.borderColor = '#27ae60';
-                } else {
-                    document.getElementById('utmZoneInput').style.borderColor = '#e74c3c';
-                }
-            } else {
-                document.getElementById('utmZoneInput').style.borderColor = '#e0e0e0';
-            }
-
-            if (easting) {
-                const eastingNum = parseFloat(easting);
-                if (isNaN(eastingNum) || eastingNum < 100000 || eastingNum > 900000) {
-                    document.getElementById('utmEastingInput').style.borderColor = '#e74c3c';
-                } else {
-                    document.getElementById('utmEastingInput').style.borderColor = '#27ae60';
-                }
-            } else {
-                document.getElementById('utmEastingInput').style.borderColor = '#e0e0e0';
-            }
-
-            if (northing) {
-                const northingNum = parseFloat(northing);
-                if (isNaN(northingNum) || northingNum < 0 || northingNum > 10000000) {
-                    document.getElementById('utmNorthingInput').style.borderColor = '#e74c3c';
-                } else {
-                    document.getElementById('utmNorthingInput').style.borderColor = '#27ae60';
-                }
-            } else {
-                document.getElementById('utmNorthingInput').style.borderColor = '#e0e0e0';
-            }
-        }
-
-        // --- Conversion Functions (без змін, крім консольних помилок) ---
-        // (Оскільки вони вже використовують typeof для перевірки наявності бібліотек, це ок.)
-
-        // ... всі ваші функції convertLatLonToUTM, convertLatLonToMGRS, convertLatLonToAll,
-        // convertLatLonToAllPrecisions, convertUTMToLatLon, convertMGRSToLatLon,
-        // setKyivCoordinates, setLvivCoordinates, setOdesaCoordinates, getCurrentLocation
-        // залишаються без змін ...
-
-
-        // Google Maps Specific showOnMap function
-        function showOnMap(lat, lon) {
-            // Перевіряємо, чи Google Maps API та карта ініціалізовані
-            if (typeof google === 'undefined' || !map) {
-                showResult('Карта Google Maps не ініціалізована. Перевірте ваш API ключ або з\'єднання.', true);
-                return;
-            }
-
-            // Видаляємо попередній маркер, якщо він існує
-            if (currentMarker) {
-                currentMarker.setMap(null); // Видаляємо маркер з карти Google Maps
-            }
-
-            const position = { lat: lat, lng: lon };
-
-            // Створюємо новий маркер Google Maps
-            currentMarker = new google.maps.Marker({
-                position: position,
-                map: map,
-                title: `Lat: ${lat.toFixed(6)}, Lon: ${lon.toFixed(6)}`
-            });
-
-            // Створюємо та відкриваємо інфо-вікно (InfoWindow)
-            const infowindow = new google.maps.InfoWindow({
-                content: `<b>Координати:</b><br>Широта: ${lat.toFixed(6)}°<br>Довгота: ${lon.toFixed(6)}°`
-            });
-            infowindow.open(map, currentMarker);
-
-            // Центруємо карту на маркері
-            map.setCenter(position);
-            map.setZoom(13); // Масштаб для детального перегляду
-
-            // Приховуємо плейсхолдер карти, якщо він ще видимий
-            const mapPlaceholder = document.querySelector('.map-placeholder');
-            if (mapPlaceholder && mapPlaceholder.style.display !== 'none') {
-                mapPlaceholder.style.display = 'none';
-            }
-        }
-
-        // ... інші функції (clearInputs, showOnMapFromInputs, getCurrentLocation) ...
-        // Оновлена функція clearInputs
-        function clearInputs() {
-            document.getElementById('latInput').value = '';
-            document.getElementById('lonInput').value = '';
-            document.getElementById('mgrsInput').value = '';
-            document.getElementById('utmZoneInput').value = '';
-            document.getElementById('utmEastingInput').value = '';
-            document.getElementById('utmNorthingInput').value = '';
-            document.getElementById('result').style.display = 'none';
-
-            // Reset border colors
-            document.getElementById('latInput').style.borderColor = '#e0e0e0';
-            document.getElementById('lonInput').style.borderColor = '#e0e0e0';
-            document.getElementById('mgrsInput').style.borderColor = '#e0e0e0';
-            document.getElementById('utmZoneInput').style.borderColor = '#e0e0e0';
-            document.getElementById('utmEastingInput').style.borderColor = '#e0e0e0';
-            document.getElementById('utmNorthingInput').style.borderColor = '#e0e0e0';
-
-            // Remove marker from map (if it's Google Maps marker)
-            if (currentMarker) {
-                currentMarker.setMap(null); // Remove Google Maps marker
-                currentMarker = null;
-            }
-            // Show the map placeholder again
-            document.querySelector('.map-placeholder').style.display = 'flex';
-        }
-
-        function showOnMapFromInputs() {
-            const lat = parseFloat(document.getElementById('latInput').value);
-            const lon = parseFloat(document.getElementById('lonInput').value);
-
-            if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
-                showResult('Спочатку введіть дійсні Lat/Lon координати, щоб показати їх на карті.', true);
-                return;
-            }
-            showOnMap(lat, lon);
-            showResult(`Координати ${lat.toFixed(6)}, ${lon.toFixed(6)} відображено на карті`);
-        }
-
-        function getCurrentLocation() {
-            if (!navigator.geolocation) {
-                showResult('Геолокація не підтримується цим браузером', true);
-                return;
-            }
-
-            const button = document.querySelector('.location-btn');
-            const originalText = button.textContent;
-            button.textContent = 'Отримання...';
-            button.disabled = true;
-
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-
-                    document.getElementById('latInput').value = lat.toFixed(6);
-                    document.getElementById('lonInput').value = lon.toFixed(6);
-
-                    convertLatLonToAll();
-
-                    button.textContent = originalText;
-                    button.disabled = false;
-                    showTemporaryMessage('Поточне місцезнаходження отримано', 'success');
-                },
-                function(error) {
-                    let errorMessage = 'Помилка отримання геолокації';
-                    switch(error.code) {
-                        case error.PERMISSION_DENIED:
-                            errorMessage = 'Доступ до геолокації заборонено. Будь ласка, дозвольте доступ до геолокації в налаштуваннях браузера.';
-                            break;
-                        case error.POSITION_UNAVAILABLE:
-                            errorMessage = 'Місцезнаходження недоступне. Спробуйте ще раз пізніше.';
-                            break;
-                        case error.TIMEOUT:
-                            errorMessage = 'Час очікування геолокації вичерпано. Перевірте з\'єднання або спробуйте ще раз.';
-                            break;
-                    }
-                    showResult(errorMessage, true);
-                    button.textContent = originalText;
-                    button.disabled = false;
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                }
-            );
-        }
     </script>
 </body>
 </html>
