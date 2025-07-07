@@ -9,7 +9,6 @@
 
     <script src="mgrs.min.js"></script>
     <script src="proj4.js"></script>
-    
     <style>
         /* Весь ваш CSS код залишається без змін */
         * {
@@ -256,12 +255,6 @@
                 height: 60%;
             }
 
-            .map-controls {
-                top: auto;
-                bottom: 15px;
-                left: 15px;
-                right: 15px;
-            }
         }
 
         .copy-btn {
@@ -403,7 +396,7 @@
                     <button class="quick-btn" onclick="setLvivCoordinates()">Львів</button>
                     <button class="quick-btn" onclick="setOdesaCoordinates()">Одеса</button>
                     <button class="quick-btn" onclick="clearInputs()">Очистити</button>
-                    <button class="quick-btn location-btn" onclick="getCurrentLocation()">Моє місцезнаходження</button>
+                    <button class="quick-btn location-btn" onclick="getCurrentLocation()">Моє місце</button>
                 </div>
             </div>
 
@@ -424,18 +417,16 @@
         </div>
     </div>
 
-    <div class="map-controls">
-        💡 Координати будуть відображені на карті після конвертації
-    </div>
-
     <script>
-        // Глобальні змінні для Google Maps
+        // Глобальні змінні для Google Maps та маркера
         let map = null;
         let currentMarker = null;
 
-        // Callback функція для Google Maps API.
-        // Ця функція ОБОВ'ЯЗКОВО повинна бути глобальною
-        // і не обгорнутою в DOMContentLoaded, оскільки її викликає API.
+        // --- Глобальні функції ---
+        // Усі функції, які викликаються безпосередньо з HTML (наприклад, onclick="myFunction()")
+        // або викликаються іншими глобальними функціями, повинні бути визначені тут.
+
+        // Callback функція для Google Maps API. ОБОВ'ЯЗКОВО повинна бути глобальною.
         function initMap() {
             // Приховати плейсхолдер карти одразу, як тільки функція initMap викликана
             const mapPlaceholder = document.querySelector('.map-placeholder');
@@ -443,7 +434,7 @@
                 mapPlaceholder.style.display = 'none';
             }
 
-            // Центр карти за замовчуванням (наприклад, Київ)
+            // Центр карти за замовчуванням (наприклад, Київ, Україна)
             const defaultLatLng = { lat: 50.4501, lng: 30.5234 };
 
             map = new google.maps.Map(document.getElementById('map'), {
@@ -458,15 +449,12 @@
                 const clickedLon = e.latLng.lng();
                 document.getElementById('latInput').value = clickedLat.toFixed(6);
                 document.getElementById('lonInput').value = clickedLon.toFixed(6);
-                validateInput();
-                convertLatLonToAll(); // Автоматична конвертація після кліку
+                validateInput(); // Валідуємо ввід після заповнення
+                convertLatLonToAll(); // Автоматична конвертація по кліку
             });
 
             console.log("Google Maps initialized.");
         }
-
-        // --- Основні функції: Переміщені до ГЛОБАЛЬНОЇ області видимості ---
-        // Вони повинні бути доступні для onclick атрибутів HTML-кнопок.
 
         // Допоміжні функції
         function showResult(content, isError = false) {
@@ -510,7 +498,7 @@
             }, 3000);
         }
 
-        // Функції валідації
+        // Функції валідації вводу
         function validateInput() {
             const lat = document.getElementById('latInput').value;
             const lon = document.getElementById('lonInput').value;
@@ -586,7 +574,7 @@
             }
         }
 
-        // Функції конвертації
+        // Функції конвертації координат
         function getUtmProjString(zone, hemisphere) {
             const zoneNum = parseInt(zone);
             const south = hemisphere.toUpperCase() === 'S' ? ' +south' : '';
@@ -809,26 +797,65 @@
             }
         }
 
-        // Швидкі дії
+        // Функція для відображення маркера на карті Google Maps. Ця функція ОБОВ'ЯЗКОВО глобальна.
+        function showOnMap(lat, lon) {
+            // Перевіряємо, чи Google Maps API та карта ініціалізовані
+            if (typeof google === 'undefined' || !map) {
+                showResult('Карта Google Maps не ініціалізована. Перевірте ваш API ключ або з\'єднання.', true);
+                return;
+            }
+
+            // Видаляємо попередній маркер, якщо він існує
+            if (currentMarker) {
+                currentMarker.setMap(null); // Видаляємо маркер з карти Google Maps
+            }
+
+            const position = { lat: lat, lng: lon };
+
+            // Створюємо новий маркер Google Maps
+            currentMarker = new google.maps.Marker({
+                position: position,
+                map: map,
+                title: `Lat: ${lat.toFixed(6)}, Lon: ${lon.toFixed(6)}`
+            });
+
+            // Створюємо та відкриваємо інфо-вікно (InfoWindow)
+            const infowindow = new google.maps.InfoWindow({
+                content: `<b>Координати:</b><br>Широта: ${lat.toFixed(6)}°<br>Довгота: ${lon.toFixed(6)}°`
+            });
+            infowindow.open(map, currentMarker);
+
+            // Центруємо карту на маркері
+            map.setCenter(position);
+            map.setZoom(13); // Масштаб для детального перегляду
+
+            // Приховуємо плейсхолдер карти, якщо він ще видимий
+            const mapPlaceholder = document.querySelector('.map-placeholder');
+            if (mapPlaceholder && mapPlaceholder.style.display !== 'none') {
+                mapPlaceholder.style.display = 'none';
+            }
+        }
+
+        // Швидкі дії та загальні функції (мають бути глобальними для onclick)
         function setKyivCoordinates() {
             document.getElementById('latInput').value = '50.4501';
             document.getElementById('lonInput').value = '30.5234';
             validateInput();
-            convertLatLonToAll();
+            convertLatLonToAll(); // Автоматична конвертація
         }
 
         function setLvivCoordinates() {
             document.getElementById('latInput').value = '49.8397';
             document.getElementById('lonInput').value = '24.0297';
             validateInput();
-            convertLatLonToAll();
+            convertLatLonToAll(); // Автоматична конвертація
         }
 
         function setOdesaCoordinates() {
             document.getElementById('latInput').value = '46.4825';
             document.getElementById('lonInput').value = '30.7233';
             validateInput();
-            convertLatLonToAll();
+            convertLatLonToAll(); // Автоматична конвертація
         }
 
         function clearInputs() {
@@ -840,6 +867,7 @@
             document.getElementById('utmNorthingInput').value = '';
             document.getElementById('result').style.display = 'none';
 
+            // Скидання стилів borders
             document.getElementById('latInput').style.borderColor = '#e0e0e0';
             document.getElementById('lonInput').style.borderColor = '#e0e0e0';
             document.getElementById('mgrsInput').style.borderColor = '#e0e0e0';
@@ -847,16 +875,19 @@
             document.getElementById('utmEastingInput').style.borderColor = '#e0e0e0';
             document.getElementById('utmNorthingInput').style.borderColor = '#e0e0e0';
 
+            // Видалення маркера з карти Google Maps
             if (currentMarker) {
                 currentMarker.setMap(null);
                 currentMarker = null;
             }
+            // Показати плейсхолдер карти знову
             document.querySelector('.map-placeholder').style.display = 'flex';
         }
 
         function showOnMapFromInputs() {
             const lat = parseFloat(document.getElementById('latInput').value);
             const lon = parseFloat(document.getElementById('lonInput').value);
+
             if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
                 showResult('Спочатку введіть дійсні Lat/Lon координати, щоб показати їх на карті.', true);
                 return;
@@ -870,17 +901,22 @@
                 showResult('Геолокація не підтримується цим браузером', true);
                 return;
             }
+
             const button = document.querySelector('.location-btn');
             const originalText = button.textContent;
             button.textContent = 'Отримання...';
             button.disabled = true;
+
             navigator.geolocation.getCurrentPosition(
                 function(position) {
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
+
                     document.getElementById('latInput').value = lat.toFixed(6);
                     document.getElementById('lonInput').value = lon.toFixed(6);
-                    convertLatLonToAll();
+
+                    convertLatLonToAll(); // Автоматична конвертація
+
                     button.textContent = originalText;
                     button.disabled = false;
                     showTemporaryMessage('Поточне місцезнаходження отримано', 'success');
@@ -894,12 +930,19 @@
                         case error.POSITION_UNAVAILABLE:
                             errorMessage = 'Місцезнаходження недоступне. Спробуйте ще раз пізніше.';
                             break;
+                        case error.TIMEOUT:
+                            errorMessage = 'Час очікування геолокації вичерпано. Перевірте з\'єднання або спробуйте ще раз.';
+                            break;
                     }
                     showResult(errorMessage, true);
                     button.textContent = originalText;
                     button.disabled = false;
                 },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
             );
         }
 
