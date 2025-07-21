@@ -168,20 +168,6 @@
             opacity: 0.3;
         }
 
-        .map-controls {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            z-index: 1000;
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 13px;
-            color: #6c757d;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-
         .quick-actions {
             margin-top: 20px;
             padding-top: 20px;
@@ -446,7 +432,7 @@
                     <button class="quick-btn" onclick="setLvivCoordinates()">Львів</button>
                     <button class="quick-btn" onclick="setOdesaCoordinates()">Одеса</button>
                     <button class="quick-btn" onclick="clearInputs()">Очистити</button>
-                    <button class="quick-btn location-btn" onclick="getCurrentLocation()">Моє місцезнаходження</button>
+                    <button class="quick-btn location-btn" onclick="getCurrentLocation()">Моє місце</button>
                 </div>
             </div>
 
@@ -463,10 +449,6 @@
 
             <div id="result" class="result-section" style="display: none;"></div>
         </div>
-    </div>
-
-    <div class="map-controls">
-        💡 Координати будуть відображені на карті після конвертації
     </div>
 
     <script>
