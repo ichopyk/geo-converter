@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Конвертер координат Lat/Lon ↔ UTM ↔ MGRS ↔ USNG</title>
+    <title>Конвертер координат Lat/Lon ↔ UTM ↔ MGRS ↔ USNG ↔ УСК-2000</title>
 
     <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap"></script>
 
@@ -332,12 +332,12 @@
             box-shadow: 0 3px 10px rgba(142, 68, 173, 0.3);
         }
 
-        .ddm-section, .dms-section, .usng-section {
+        .ddm-section, .dms-section, .usng-section, .usk2000-section {
             margin-top: 25px;
             padding-top: 25px;
             border-top: 2px solid #ecf0f1;
         }
-        .ddm-section h3, .dms-section h3, .usng-section h3 {
+        .ddm-section h3, .dms-section h3, .usng-section h3, .usk2000-section h3 {
             margin-bottom: 18px;
             color: #2c3e50;
             font-size: 18px;
@@ -373,6 +373,7 @@
                 <button onclick="convertLatLonToUTM()">→ UTM</button>
                 <button onclick="convertLatLonToMGRS()">→ MGRS</button>
                 <button onclick="convertLatLonToUSNG()">→ USNG</button>
+                <button onclick="convertLatLonToUSK2000()">→ УСК-2000</button>
                 <button onclick="convertLatLonToDDM()">→ DDM</button>
                 <button onclick="convertLatLonToDMS()">→ DMS</button>
                 <button onclick="convertLatLonToAll()">→ Всі формати</button>
@@ -421,6 +422,21 @@
                 </div>
             </div>
 
+            <div class="usk2000-section">
+                <h3>Конвертація з УСК-2000</h3>
+                <div class="input-group">
+                    <label for="usk2000EastingInput">Easting (X):</label>
+                    <input type="text" id="usk2000EastingInput" placeholder="3524363" oninput="validateUSK2000Input()">
+                </div>
+                <div class="input-group">
+                    <label for="usk2000NorthingInput">Northing (Y):</label>
+                    <input type="text" id="usk2000NorthingInput" placeholder="5593887" oninput="validateUSK2000Input()">
+                </div>
+                <div class="button-group">
+                    <button onclick="convertUSK2000ToLatLon()">→ Lat/Lon (DD)</button>
+                </div>
+            </div>
+
             <div class="ddm-section">
                 <h3>Конвертація з DDM</h3>
                 <div class="input-group">
@@ -458,7 +474,7 @@
                     <button class="quick-btn" onclick="setLvivCoordinates()">Львів</button>
                     <button class="quick-btn" onclick="setOdesaCoordinates()">Одеса</button>
                     <button class="quick-btn" onclick="clearInputs()">Очистити</button>
-                    <button class="quick-btn location-btn" onclick="getCurrentLocation()">Моє місце</button>
+                    <button class="quick-btn location-btn" onclick="getCurrentLocation()">Моє місцезнаходження</button>
                 </div>
             </div>
 
@@ -469,6 +485,7 @@
                     <strong>UTM:</strong> 36N 123456 5123456<br>
                     <strong>MGRS:</strong> 36UYA1234567890<br>
                     <strong>USNG:</strong> 36U YA 12345 67890<br>
+                    <strong>УСК-2000 (Зона 3):</strong> 3524363, 5593887 (Easting, Northing)<br>
                     <strong>DDM:</strong> 50° 26.9725'N, 030° 31.5207'E<br>
                     <strong>DMS:</strong> 50° 26' 58.35''N, 030° 31' 12.35''E
                 </div>
@@ -608,8 +625,8 @@
 
         function validateUSNGInput() {
             const usngInput = document.getElementById('usngInput').value.trim().toUpperCase();
-            // USNG pattern similar to MGRS but allows spaces
-            const usngPattern = /^[0-9]{1,2}[A-Z]\s?[A-Z]{2}\s?[0-9]{2}([0-9]{2})?([0-9]{2})?([0-9]{2})?([0-9]{2})?$/;
+            // USNG pattern similar to MGRS but allows spaces and often comes in 10-digit formats for E/N
+            const usngPattern = /^[0-9]{1,2}[A-Z]\s?[A-Z]{2}\s?[0-9]{2,5}(\s[0-9]{2,5})?$/; // Simplified, more robust regex needed for full validation
             if (usngInput) {
                 if (usngPattern.test(usngInput)) {
                     document.getElementById('usngInput').style.borderColor = '#27ae60';
@@ -618,6 +635,37 @@
                 }
             } else {
                 document.getElementById('usngInput').style.borderColor = '#e0e0e0';
+            }
+        }
+        
+        function validateUSK2000Input() {
+            const easting = document.getElementById('usk2000EastingInput').value.trim();
+            const northing = document.getElementById('usk2000NorthingInput').value.trim();
+
+            const coordPattern = /^\d+(\.\d+)?$/; // Просто перевіряємо, що це число
+
+            if (easting) {
+                const eastingNum = parseFloat(easting);
+                // Припускаємо, що Easting може бути в діапазоні (наприклад, 3_000_000 до 4_000_000 для Зони 3)
+                if (isNaN(eastingNum) || eastingNum < 1000000 || eastingNum > 7000000) { 
+                    document.getElementById('usk2000EastingInput').style.borderColor = '#e74c3c';
+                } else {
+                    document.getElementById('usk2000EastingInput').style.borderColor = '#27ae60';
+                }
+            } else {
+                document.getElementById('usk2000EastingInput').style.borderColor = '#e0e0e0';
+            }
+
+            if (northing) {
+                const northingNum = parseFloat(northing);
+                // Northing для УСК-2000 в Україні зазвичай 5_000_000 - 6_000_000 (залежить від початкової широти)
+                if (isNaN(northingNum) || northingNum < 4000000 || northingNum > 6000000) { 
+                    document.getElementById('usk2000NorthingInput').style.borderColor = '#e74c3c';
+                } else {
+                    document.getElementById('usk2000NorthingInput').style.borderColor = '#27ae60';
+                }
+            } else {
+                document.getElementById('usk2000NorthingInput').style.borderColor = '#e0e0e0';
             }
         }
 
@@ -826,6 +874,39 @@
                 showResult(`Помилка конвертації Lat/Lon в USNG: ${error.message}`, true);
             }
         }
+        
+        // Функція конвертації Lat/Lon в УСК-2000 (Зона 3)
+        function convertLatLonToUSK2000() {
+            console.log("convertLatLonToUSK2000 called");
+            const lat = parseFloat(document.getElementById('latInput').value);
+            const lon = parseFloat(document.getElementById('lonInput').value);
+            if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
+                showResult('Будь ласка, введіть дійсні координати Lat/Lon (-90 до 90, -180 до 180).', true);
+                return;
+            }
+            if (typeof proj4 === 'undefined') {
+                showResult('Помилка: Бібліотека Proj4js не завантажена. Конвертація УСК-2000 неможлива.', true);
+                return;
+            }
+
+            try {
+                // Перетворення з WGS84 (Lon/Lat) в УСК-2000 (Easting/Northing)
+                // Використовуємо визначення EPSG:6372 для УСК-2000 Зона 3 (центральний меридіан 30E)
+                const usk2000Proj = proj4('EPSG:4326', 'USK2000_Zone3'); 
+                const [easting, northing] = usk2000Proj.forward([lon, lat]);
+
+                const result = `
+                    <h3>УСК-2000 координати:</h3>
+                    <p><strong>Easting (X):</strong> ${easting.toFixed(2)} ${addCopyButton(easting.toFixed(2), 'Копіювати')}</p>
+                    <p><strong>Northing (Y):</strong> ${northing.toFixed(2)} ${addCopyButton(northing.toFixed(2), 'Копіювати')}</p>
+                `;
+                showResult(result);
+                showOnMap(lat, lon);
+            } catch (error) {
+                console.error("USK-2000 Conversion Error (LatLon to USK-2000):", error);
+                showResult(`Помилка конвертації Lat/Lon в УСК-2000: ${error.message}`, true);
+            }
+        }
 
         function convertLatLonToDDM() {
             console.log("convertLatLonToDDM called");
@@ -923,12 +1004,27 @@
                 const zone = Math.floor((lon + 180) / 6) + 1;
                 const hemisphere = lat >= 0 ? 'N' : 'S';
                 const utmProj = proj4(getUtmProjString(zone, hemisphere));
-                const [easting, northing] = utmProj.forward([lon, lat]);
+                const [eastingUTM, northingUTM] = utmProj.forward([lon, lat]);
+                
                 // MGRS
                 const mgrsCoord = mgrs.forward([lon, lat], 5);
                 // USNG
                 const usngCoord = formatMGRSToUSNG(mgrsCoord);
 
+                // УСК-2000 (Зона 3)
+                let usk2000Easting = 'N/A', usk2000Northing = 'N/A';
+                if (typeof proj4 !== 'undefined' && proj4.defs['USK2000_Zone3']) {
+                    const usk2000Proj = proj4('EPSG:4326', 'USK2000_Zone3');
+                    try {
+                        const [easting, northing] = usk2000Proj.forward([lon, lat]);
+                        usk2000Easting = easting.toFixed(2);
+                        usk2000Northing = northing.toFixed(2);
+                    } catch (e) {
+                        console.warn("Error converting to USK-2000 for All formats:", e);
+                        usk2000Easting = 'Error'; usk2000Northing = 'Error';
+                    }
+                }
+                
                 // DDM
                 const latAbsDDM = Math.abs(lat);
                 const latDegDDM = Math.floor(latAbsDDM);
@@ -964,9 +1060,10 @@
                     <h3>Всі формати координат:</h3>
                     <p><strong>Широта (DD):</strong> ${lat.toFixed(6)}° ${addCopyButton(lat.toFixed(6), 'Копіювати')}</p>
                     <p><strong>Довгота (DD):</strong> ${lon.toFixed(6)}° ${addCopyButton(lon.toFixed(6), 'Копіювати')}</p>
-                    <p><strong>UTM:</strong> ${zone}${hemisphere} ${easting.toFixed(2)} ${northing.toFixed(2)} ${addCopyButton(`${zone}${hemisphere} ${easting.toFixed(2)} ${northing.toFixed(2)}`, 'Копіювати')}</p>
+                    <p><strong>UTM:</strong> ${zone}${hemisphere} ${eastingUTM.toFixed(2)} ${northingUTM.toFixed(2)} ${addCopyButton(`${zone}${hemisphere} ${eastingUTM.toFixed(2)} ${northingUTM.toFixed(2)}`, 'Копіювати')}</p>
                     <p><strong>MGRS:</strong> ${mgrsCoord} ${addCopyButton(mgrsCoord, 'Копіювати')}</p>
                     <p><strong>USNG:</strong> ${usngCoord} ${addCopyButton(usngCoord, 'Копіювати')}</p>
+                    <p><strong>УСК-2000:</strong> X=${usk2000Easting}, Y=${usk2000Northing} ${addCopyButton(`${usk2000Easting}, ${usk2000Northing}`, 'Копіювати')}</p>
                     <p><strong>DDM:</strong> ${ddmLat} ${addCopyButton(ddmLat, 'Копіювати')}</p>
                     <p><strong>DMS:</strong> ${dmsLat} ${addCopyButton(dmsLon, 'Копіювати')}</p> 
                 `;
@@ -1121,6 +1218,48 @@
             } catch (error) {
                 console.error("USNG to LatLon Conversion Error:", error);
                 showResult(`Помилка конвертації USNG в Lat/Lon: ${error.message}`, true);
+            }
+        }
+
+        // Функція конвертації УСК-2000 (Зона 3) в Lat/Lon
+        function convertUSK2000ToLatLon() {
+            console.log("convertUSK2000ToLatLon called");
+            const easting = parseFloat(document.getElementById('usk2000EastingInput').value);
+            const northing = parseFloat(document.getElementById('usk2000NorthingInput').value);
+
+            if (isNaN(easting) || isNaN(northing)) {
+                showResult('Будь ласка, введіть обидві координати УСК-2000 (Easting, Northing).', true);
+                return;
+            }
+            if (typeof proj4 === 'undefined') {
+                showResult('Помилка: Бібліотека Proj4js не завантажена. Конвертація УСК-2000 неможлива.', true);
+                return;
+            }
+            if (!proj4.defs['USK2000_Zone3']) { // Перевірка, чи визначена проекція
+                 showResult('Помилка: Визначення проекції УСК-2000 (Зона 3) не знайдено. Перевірте ініціалізацію proj4.defs.', true);
+                 return;
+            }
+
+            try {
+                // Перетворення з УСК-2000 (Easting/Northing) в WGS84 (Lon/Lat)
+                const usk2000Proj = proj4('USK2000_Zone3', 'EPSG:4326');
+                const [lon, lat] = usk2000Proj.forward([easting, northing]); // proj4.js .inverse() is deprecated, use forward with swapped definitions
+
+                if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                    showResult('Отримані Lat/Lon координати поза допустимими межами. Перевірте ввід УСК-2000.', true);
+                    return;
+                }
+
+                const result = `
+                    <h3>Lat/Lon (DD) координати:</h3>
+                    <p><strong>Широта (DD):</strong> ${lat.toFixed(6)}° ${addCopyButton(lat.toFixed(6), 'Копіювати')}</p>
+                    <p><strong>Довгота (DD):</strong> ${lon.toFixed(6)}° ${addCopyButton(lon.toFixed(6), 'Копіювати')}</p>
+                `;
+                showResult(result);
+                showOnMap(lat, lon);
+            } catch (error) {
+                console.error("USK-2000 to LatLon Conversion Error:", error);
+                showResult(`Помилка конвертації УСК-2000 в Lat/Lon: ${error.message}`, true);
             }
         }
 
@@ -1299,10 +1438,12 @@
             document.getElementById('latInput').style.borderColor = '#e0e0e0';
             document.getElementById('lonInput').style.borderColor = '#e0e0e0';
             document.getElementById('mgrsInput').style.borderColor = '#e0e0e0';
+            document.getElementById('usngInput').style.borderColor = '#e0e0e0'; 
+            document.getElementById('usk2000EastingInput').style.borderColor = '#e0e0e0'; // New
+            document.getElementById('usk2000NorthingInput').style.borderColor = '#e0e0e0'; // New
             document.getElementById('utmZoneInput').style.borderColor = '#e0e0e0';
             document.getElementById('utmEastingInput').style.borderColor = '#e0e0e0';
             document.getElementById('utmNorthingInput').style.borderColor = '#e0e0e0';
-            document.getElementById('usngInput').style.borderColor = '#e0e0e0'; // New
             document.getElementById('ddmLatInput').style.borderColor = '#e0e0e0';
             document.getElementById('ddmLonInput').style.borderColor = '#e0e0e0';
             document.getElementById('dmsLatInput').style.borderColor = '#e0e0e0';
@@ -1321,10 +1462,12 @@
         // Допоміжна функція для очищення всіх полів, крім Lat/Lon
         function clearOtherInputs() {
             document.getElementById('mgrsInput').value = '';
+            document.getElementById('usngInput').value = ''; 
+            document.getElementById('usk2000EastingInput').value = ''; // New
+            document.getElementById('usk2000NorthingInput').value = ''; // New
             document.getElementById('utmZoneInput').value = '';
             document.getElementById('utmEastingInput').value = '';
             document.getElementById('utmNorthingInput').value = '';
-            document.getElementById('usngInput').value = ''; // New
             document.getElementById('ddmLatInput').value = '';
             document.getElementById('ddmLonInput').value = '';
             document.getElementById('dmsLatInput').value = '';
@@ -1400,17 +1543,23 @@
             // Це безпечно тут, оскільки proj4.js вже мав завантажитися.
             if (typeof proj4 !== 'undefined') {
                 proj4.defs("EPSG:4326", "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs");
-                console.log("Proj4js definitions loaded."); // Для налагодження
+                // Визначення проекції для УСК-2000, Зона 3 (EPSG:6372)
+                // Центральний меридіан 30E, False Easting 3500000
+                proj4.defs("USK2000_Zone3", "+proj=tmerc +lat_0=0 +lon_0=30 +k=1 +x_0=3500000 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
+                
+                console.log("Proj4js definitions loaded, including USK2000_Zone3."); // Для налагодження
             } else {
                 console.error("Proj4js library not loaded at DOMContentLoaded!");
-                showTemporaryMessage("Помилка: Бібліотека Proj4js не завантажена. Конвертація UTM може не працювати.", 'error');
+                showTemporaryMessage("Помилка: Бібліотека Proj4js не завантажена. Конвертація UTM/УСК-2000 може не працювати.", 'error');
             }
 
             // Приєднання слухачів подій до полів вводу
             document.getElementById('latInput').addEventListener('input', validateInput);
             document.getElementById('lonInput').addEventListener('input', validateInput);
             document.getElementById('mgrsInput').addEventListener('input', validateMGRSInput);
-            document.getElementById('usngInput').addEventListener('input', validateUSNGInput); // New
+            document.getElementById('usngInput').addEventListener('input', validateUSNGInput);
+            document.getElementById('usk2000EastingInput').addEventListener('input', validateUSK2000Input); // New
+            document.getElementById('usk2000NorthingInput').addEventListener('input', validateUSK2000Input); // New
             document.getElementById('utmZoneInput').addEventListener('input', validateUTMInput);
             document.getElementById('utmEastingInput').addEventListener('input', validateUTMInput);
             document.getElementById('utmNorthingInput').addEventListener('input', validateUTMInput);
@@ -1430,8 +1579,14 @@
             document.getElementById('mgrsInput').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') convertMGRSToLatLon();
             });
-            document.getElementById('usngInput').addEventListener('keypress', function(e) { // New
+            document.getElementById('usngInput').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') convertUSNGToLatLon();
+            });
+            document.getElementById('usk2000EastingInput').addEventListener('keypress', function(e) { // New
+                if (e.key === 'Enter') convertUSK2000ToLatLon();
+            });
+            document.getElementById('usk2000NorthingInput').addEventListener('keypress', function(e) { // New
+                if (e.key === 'Enter') convertUSK2000ToLatLon();
             });
             document.getElementById('utmZoneInput').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') convertUTMToLatLon();
