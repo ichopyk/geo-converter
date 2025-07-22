@@ -528,10 +528,15 @@
                 advancedMarkerModule = await google.maps.importLibrary("marker"); // Зберігаємо для використання AdvancedMarkerElement
                 console.log("Google Maps 'maps' and 'marker' libraries loaded.");
 
+                // !!! ДОДАЙТЕ ЦЕЙ РЯДОК З ВАШИМ MAP ID !!!
+                // Створіть його у Google Cloud Console > Maps Platform > Map Management
+                const MY_MAP_ID = "17facc30c4ede722837f1ef0"; // <--- ЗАМІНІТЬ НА ВАШ РЕАЛЬНИЙ MAP ID
+
                 map = new Map(document.getElementById('map'), {
                     center: defaultLatLng,
                     zoom: 6, // Початковий рівень масштабу
-                    mapTypeId: 'roadmap' // Тип карти: 'roadmap', 'satellite', 'hybrid', 'terrain'
+                    mapTypeId: 'roadmap', // Тип карти: 'roadmap', 'satellite', 'hybrid', 'terrain'
+                    mapId: MY_MAP_ID // <--- Важливо: додайте цей параметр!
                 });
 
                 // Додаємо слухач подій для кліку на карту
@@ -573,7 +578,7 @@
 
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(function() {
-                showTemporaryMessage('Скопійовано!', 'success');
+                showTemporaryMessage('Скопіровано!', 'success');
             }, function() {
                 showTemporaryMessage('Помилка копіювання', 'error');
             });
