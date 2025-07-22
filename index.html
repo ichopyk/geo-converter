@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Конвертер координат Lat/Lon ↔ UTM ↔ MGRS ↔ USNG ↔ УСК-2000</title>
 
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM"></script>
 
     <script src="mgrs.min.js"></script>
     <script src="proj4.js"></script>
@@ -503,13 +503,14 @@
         // Глобальні змінні для Google Maps та маркера
         let map = null;
         let currentMarker = null;
+        let advancedMarkerModule = null; // Для зберігання модуля маркерів
 
         // --- Глобальні функції ---
         // Усі функції, які викликаються безпосередньо з HTML (наприклад, onclick="myFunction()")
         // або викликаються іншими глобальними функціями, повинні бути визначені тут.
 
         // Callback функція для Google Maps API. ОБОВ'ЯЗКОВО повинна бути глобальною.
-        function initMap() {
+        async function initMap() {
             // Приховати плейсхолдер карти одразу, як тільки функція initMap викликана
             const mapPlaceholder = document.querySelector('.map-placeholder');
             if (mapPlaceholder) {
@@ -519,23 +520,35 @@
             // Центр карти за замовчуванням (наприклад, Київ, Україна)
             const defaultLatLng = { lat: 50.4501, lng: 30.5234 };
 
-            map = new google.maps.Map(document.getElementById('map'), {
-                center: defaultLatLng,
-                zoom: 6, // Початковий рівень масштабу
-                mapTypeId: 'roadmap' // Тип карти: 'roadmap', 'satellite', 'hybrid', 'terrain'
-            });
+            // Завантаження основного модуля карти та модуля маркерів
+            // Це завантажує їх більш оптимізовано і надає доступ до нових маркерів.
+            try {
+                const { Map } = await google.maps.importLibrary("maps");
+                advancedMarkerModule = await google.maps.importLibrary("marker"); // Зберігаємо для використання AdvancedMarkerElement
+                console.log("Google Maps 'maps' and 'marker' libraries loaded.");
 
-            // Додаємо слухач подій для кліку на карту
-            map.addListener("click", (e) => {
-                const clickedLat = e.latLng.lat();
-                const clickedLon = e.latLng.lng();
-                document.getElementById('latInput').value = clickedLat.toFixed(6);
-                document.getElementById('lonInput').value = clickedLon.toFixed(6);
-                validateInput(); // Валідуємо ввід після заповнення
-                convertLatLonToAll(); // Автоматична конвертація по кліку
-            });
+                map = new Map(document.getElementById('map'), {
+                    center: defaultLatLng,
+                    zoom: 6, // Початковий рівень масштабу
+                    mapTypeId: 'roadmap' // Тип карти: 'roadmap', 'satellite', 'hybrid', 'terrain'
+                });
 
-            console.log("Google Maps initialized.");
+                // Додаємо слухач подій для кліку на карту
+                map.addListener("click", (e) => {
+                    const clickedLat = e.latLng.lat();
+                    const clickedLon = e.latLng.lng();
+                    document.getElementById('latInput').value = clickedLat.toFixed(6);
+                    document.getElementById('lonInput').value = clickedLon.toFixed(6);
+                    validateInput(); // Валідуємо ввід після заповнення
+                    convertLatLonToAll(); // Автоматична конвертація по кліку
+                });
+
+                console.log("Google Maps initialized.");
+
+            } catch (error) {
+                console.error("Error loading Google Maps libraries:", error);
+                showResult("Помилка завантаження Google Maps. Перевірте API ключ та з'єднання.", true);
+            }
         }
 
         // Допоміжні функції
@@ -888,6 +901,10 @@
                 showResult('Помилка: Бібліотека Proj4js не завантажена. Конвертація УСК-2000 неможлива.', true);
                 return;
             }
+            if (!proj4.defs['USK2000_Zone3']) { // Перевірка, чи визначена проекція
+                 showResult('Помилка: Визначення проекції УСК-2000 (Зона 3) не знайдено. Перевірте ініціалізацію proj4.defs.', true);
+                 return;
+            }
 
             try {
                 // Перетворення з WGS84 (Lon/Lat) в УСК-2000 (Easting/Northing)
@@ -1021,7 +1038,7 @@
                         usk2000Northing = northing.toFixed(2);
                     } catch (e) {
                         console.warn("Error converting to USK-2000 for All formats:", e);
-                        usk2000Easting = 'Error'; usk2000Northing = 'Error';
+                        usk2000Easting = 'Помилка'; usk2000Northing = 'Помилка';
                     }
                 }
                 
@@ -1063,7 +1080,7 @@
                     <p><strong>UTM:</strong> ${zone}${hemisphere} ${eastingUTM.toFixed(2)} ${northingUTM.toFixed(2)} ${addCopyButton(`${zone}${hemisphere} ${eastingUTM.toFixed(2)} ${northingUTM.toFixed(2)}`, 'Копіювати')}</p>
                     <p><strong>MGRS:</strong> ${mgrsCoord} ${addCopyButton(mgrsCoord, 'Копіювати')}</p>
                     <p><strong>USNG:</strong> ${usngCoord} ${addCopyButton(usngCoord, 'Копіювати')}</p>
-                    <p><strong>УСК-2000:</strong> X=${usk2000Easting}, Y=${usk2000Northing} ${addCopyButton(`${usk2000Easting}, ${usk2000Northing}`, 'Копіювати')}</p>
+                    <p><strong>УСК-2000 (Зона 3):</strong> X=${usk2000Easting}, Y=${usk2000Northing} ${addCopyButton(`${usk2000Easting}, ${usk2000Northing}`, 'Копіювати')}</p>
                     <p><strong>DDM:</strong> ${ddmLat} ${addCopyButton(ddmLat, 'Копіювати')}</p>
                     <p><strong>DMS:</strong> ${dmsLat} ${addCopyButton(dmsLon, 'Копіювати')}</p> 
                 `;
@@ -1180,7 +1197,7 @@
                 const result = `
                     <h3>Lat/Lon координати:</h3>
                     <p><strong>Широта (DD):</strong> ${lat.toFixed(6)}° ${addCopyButton(lat.toFixed(6), 'Копіювати')}</p>
-                    <p><strong>Довгота (DD):</strong> ${lon.toFixed(6)}° ${addCopyButton(lon.toFixed(6), 'Копіювати')}</p>
+                    <p><strong>Довгота (DD):</b> ${lon.toFixed(6)}° ${addCopyButton(lon.toFixed(6), 'Копіювати')}</p>
                 `;
                 showResult(result);
                 showOnMap(lat, lon);
@@ -1242,8 +1259,10 @@
 
             try {
                 // Перетворення з УСК-2000 (Easting/Northing) в WGS84 (Lon/Lat)
+                // Важливо: proj4.js використовує .forward() для перетворення з першої визначеної проекції в другу.
+                // Для зворотного перетворення потрібно поміняти місцями визначення проекцій.
                 const usk2000Proj = proj4('USK2000_Zone3', 'EPSG:4326');
-                const [lon, lat] = usk2000Proj.forward([easting, northing]); // proj4.js .inverse() is deprecated, use forward with swapped definitions
+                const [lon, lat] = usk2000Proj.forward([easting, northing]);
 
                 if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
                     showResult('Отримані Lat/Lon координати поза допустимими межами. Перевірте ввід УСК-2000.', true);
@@ -1365,22 +1384,23 @@
 
 
         // Функція для відображення маркера на карті Google Maps. Ця функція ОБОВ'ЯЗКОВО глобальна.
-        function showOnMap(lat, lon) {
+        async function showOnMap(lat, lon) {
             // Перевіряємо, чи Google Maps API та карта ініціалізовані
-            if (typeof google === 'undefined' || !map) {
-                showResult('Карта Google Maps не ініціалізована. Перевірте ваш API ключ або з\'єднання.', true);
+            if (typeof google === 'undefined' || !map || !advancedMarkerModule) { // Перевірка advancedMarkerModule
+                showResult('Карта Google Maps не ініціалізована або модуль маркерів не завантажено. Перевірте ваш API ключ або з\'єднання.', true);
                 return;
             }
 
             // Видаляємо попередній маркер, якщо він існує
             if (currentMarker) {
-                currentMarker.setMap(null); // Видаляємо маркер з карти Google Maps
+                currentMarker.map = null; // Видаляємо AdvancedMarkerElement з карти
             }
 
             const position = { lat: lat, lng: lon };
 
-            // Створюємо новий маркер Google Maps
-            currentMarker = new google.maps.Marker({
+            // Створюємо новий AdvancedMarkerElement
+            const { AdvancedMarkerElement } = advancedMarkerModule; // Отримуємо клас AdvancedMarkerElement
+            currentMarker = new AdvancedMarkerElement({
                 position: position,
                 map: map,
                 title: `Lat: ${lat.toFixed(6)}, Lon: ${lon.toFixed(6)}`
@@ -1390,7 +1410,7 @@
             const infowindow = new google.maps.InfoWindow({
                 content: `<b>Координати:</b><br>Широта: ${lat.toFixed(6)}°<br>Довгота: ${lon.toFixed(6)}°`
             });
-            infowindow.open(map, currentMarker);
+            infowindow.open(map, currentMarker); // InfoWindow відкривається за допомогою маркера
 
             // Центруємо карту на маркері
             map.setCenter(position);
@@ -1452,7 +1472,7 @@
 
             // Видалення маркера з карти Google Maps
             if (currentMarker) {
-                currentMarker.setMap(null);
+                currentMarker.map = null; // Видаляємо AdvancedMarkerElement з карти
                 currentMarker = null;
             }
             // Показати плейсхолдер карти знову
