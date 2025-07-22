@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Конвертер координат Lat/Lon ↔ UTM ↔ MGRS ↔ USNG ↔ УСК-2000</title>
 
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM"></script>
+    <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap&loading=async"></script>
 
     <script src="mgrs.min.js"></script>
     <script src="proj4.js"></script>
@@ -510,6 +510,7 @@
         // або викликаються іншими глобальними функціями, повинні бути визначені тут.
 
         // Callback функція для Google Maps API. ОБОВ'ЯЗКОВО повинна бути глобальною.
+        // Google Maps API викличе її автоматично, коли буде готовий.
         async function initMap() {
             // Приховати плейсхолдер карти одразу, як тільки функція initMap викликана
             const mapPlaceholder = document.querySelector('.map-placeholder');
