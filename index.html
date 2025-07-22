@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Конвертер координат Lat/Lon ↔ UTM ↔ MGRS</title>
+    <title>Конвертер координат Lat/Lon ↔ UTM ↔ MGRS ↔ USNG</title>
 
     <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwGrlOp-k99i4mj_q7v9uTxzXmEF9-GWM&callback=initMap"></script>
 
@@ -168,6 +168,20 @@
             opacity: 0.3;
         }
 
+        .map-controls {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #6c757d;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
         .quick-actions {
             margin-top: 20px;
             padding-top: 20px;
@@ -318,12 +332,12 @@
             box-shadow: 0 3px 10px rgba(142, 68, 173, 0.3);
         }
 
-        .ddm-section, .dms-section {
+        .ddm-section, .dms-section, .usng-section {
             margin-top: 25px;
             padding-top: 25px;
             border-top: 2px solid #ecf0f1;
         }
-        .ddm-section h3, .dms-section h3 {
+        .ddm-section h3, .dms-section h3, .usng-section h3 {
             margin-bottom: 18px;
             color: #2c3e50;
             font-size: 18px;
@@ -358,6 +372,7 @@
             <div class="button-group">
                 <button onclick="convertLatLonToUTM()">→ UTM</button>
                 <button onclick="convertLatLonToMGRS()">→ MGRS</button>
+                <button onclick="convertLatLonToUSNG()">→ USNG</button>
                 <button onclick="convertLatLonToDDM()">→ DDM</button>
                 <button onclick="convertLatLonToDMS()">→ DMS</button>
                 <button onclick="convertLatLonToAll()">→ Всі формати</button>
@@ -392,6 +407,17 @@
                 </div>
                 <div class="button-group">
                     <button onclick="convertMGRSToLatLon()">→ Lat/Lon (DD)</button>
+                </div>
+            </div>
+
+            <div class="usng-section">
+                <h3>Конвертація з USNG</h3>
+                <div class="input-group">
+                    <label for="usngInput">USNG координати:</label>
+                    <input type="text" id="usngInput" placeholder="36U YA 12345 67890" oninput="validateUSNGInput()">
+                </div>
+                <div class="button-group">
+                    <button onclick="convertUSNGToLatLon()">→ Lat/Lon (DD)</button>
                 </div>
             </div>
 
@@ -442,6 +468,7 @@
                     <strong>Lat/Lon (DD):</strong> 50.4501, 30.5234<br>
                     <strong>UTM:</strong> 36N 123456 5123456<br>
                     <strong>MGRS:</strong> 36UYA1234567890<br>
+                    <strong>USNG:</strong> 36U YA 12345 67890<br>
                     <strong>DDM:</strong> 50° 26.9725'N, 030° 31.5207'E<br>
                     <strong>DMS:</strong> 50° 26' 58.35''N, 030° 31' 12.35''E
                 </div>
@@ -449,6 +476,10 @@
 
             <div id="result" class="result-section" style="display: none;"></div>
         </div>
+    </div>
+
+    <div class="map-controls">
+        💡 Координати будуть відображені на карті після конвертації
     </div>
 
     <script>
@@ -572,6 +603,21 @@
                 }
             } else {
                 document.getElementById('mgrsInput').style.borderColor = '#e0e0e0';
+            }
+        }
+
+        function validateUSNGInput() {
+            const usngInput = document.getElementById('usngInput').value.trim().toUpperCase();
+            // USNG pattern similar to MGRS but allows spaces
+            const usngPattern = /^[0-9]{1,2}[A-Z]\s?[A-Z]{2}\s?[0-9]{2}([0-9]{2})?([0-9]{2})?([0-9]{2})?([0-9]{2})?$/;
+            if (usngInput) {
+                if (usngPattern.test(usngInput)) {
+                    document.getElementById('usngInput').style.borderColor = '#27ae60';
+                } else {
+                    document.getElementById('usngInput').style.borderColor = '#e74c3c';
+                }
+            } else {
+                document.getElementById('usngInput').style.borderColor = '#e0e0e0';
             }
         }
 
@@ -734,6 +780,53 @@
             }
         }
 
+        // Helper function to format MGRS string to USNG with spaces
+        function formatMGRSToUSNG(mgrsString) {
+            if (!mgrsString || mgrsString.length < 5) return mgrsString;
+            const zoneBand = mgrsString.substring(0, 3); // e.g., 36U
+            const gridSquare = mgrsString.substring(3, 5); // e.g., YA
+            const eastingNorthing = mgrsString.substring(5); // e.g., 1234567890
+
+            let formatted = zoneBand + ' ' + gridSquare;
+            // Add spaces every 5 digits for easting/northing if present
+            if (eastingNorthing.length > 0) {
+                const halfLength = eastingNorthing.length / 2;
+                formatted += ' ' + eastingNorthing.substring(0, halfLength);
+                if (halfLength < eastingNorthing.length) {
+                    formatted += ' ' + eastingNorthing.substring(halfLength);
+                }
+            }
+            return formatted;
+        }
+
+        function convertLatLonToUSNG() {
+            console.log("convertLatLonToUSNG called");
+            const lat = parseFloat(document.getElementById('latInput').value);
+            const lon = parseFloat(document.getElementById('lonInput').value);
+            if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
+                showResult('Будь ласка, введіть дійсні координати Lat/Lon (-90 до 90, -180 до 180).', true);
+                return;
+            }
+            if (typeof mgrs === 'undefined') {
+                showResult('Помилка: Бібліотека MGRS не завантажена. Конвертація USNG неможлива.', true);
+                return;
+            }
+            try {
+                // USNG is MGRS with 1-meter precision (5 digits for easting/northing)
+                const mgrsCoord = mgrs.forward([lon, lat], 5); 
+                const usngCoord = formatMGRSToUSNG(mgrsCoord);
+                const result = `
+                    <h3>USNG координати:</h3>
+                    <p><strong>USNG:</strong> ${usngCoord} ${addCopyButton(usngCoord, 'Копіювати')}</p>
+                `;
+                showResult(result);
+                showOnMap(lat, lon);
+            } catch (error) {
+                console.error("USNG Conversion Error:", error);
+                showResult(`Помилка конвертації Lat/Lon в USNG: ${error.message}`, true);
+            }
+        }
+
         function convertLatLonToDDM() {
             console.log("convertLatLonToDDM called");
             const lat = parseFloat(document.getElementById('latInput').value);
@@ -833,6 +926,8 @@
                 const [easting, northing] = utmProj.forward([lon, lat]);
                 // MGRS
                 const mgrsCoord = mgrs.forward([lon, lat], 5);
+                // USNG
+                const usngCoord = formatMGRSToUSNG(mgrsCoord);
 
                 // DDM
                 const latAbsDDM = Math.abs(lat);
@@ -871,8 +966,10 @@
                     <p><strong>Довгота (DD):</strong> ${lon.toFixed(6)}° ${addCopyButton(lon.toFixed(6), 'Копіювати')}</p>
                     <p><strong>UTM:</strong> ${zone}${hemisphere} ${easting.toFixed(2)} ${northing.toFixed(2)} ${addCopyButton(`${zone}${hemisphere} ${easting.toFixed(2)} ${northing.toFixed(2)}`, 'Копіювати')}</p>
                     <p><strong>MGRS:</strong> ${mgrsCoord} ${addCopyButton(mgrsCoord, 'Копіювати')}</p>
+                    <p><strong>USNG:</strong> ${usngCoord} ${addCopyButton(usngCoord, 'Копіювати')}</p>
                     <p><strong>DDM:</strong> ${ddmLat} ${addCopyButton(ddmLat, 'Копіювати')}</p>
-                    <p><strong>DMS:</strong> ${dmsLat} ${addCopyButton(dmsLon, 'Копіювати')}</p> `;
+                    <p><strong>DMS:</strong> ${dmsLat} ${addCopyButton(dmsLon, 'Копіювати')}</p> 
+                `;
                 showResult(result);
                 showOnMap(lat, lon);
             } catch (error) {
@@ -995,6 +1092,38 @@
                 showResult(`Помилка конвертації MGRS в Lat/Lon: ${error.message}`, true);
             }
         }
+
+        function convertUSNGToLatLon() {
+            console.log("convertUSNGToLatLon called");
+            const usngCoord = document.getElementById('usngInput').value.trim();
+            if (!usngCoord) {
+                showResult('Будь ласка, введіть USNG координати.', true);
+                return;
+            }
+            if (typeof mgrs === 'undefined') {
+                showResult('Помилка: Бібліотека MGRS не завантажена. Конвертація USNG неможлива.', true);
+                return;
+            }
+            // mgrs.js inverse is flexible, it can usually handle spaces in USNG strings
+            try {
+                const [lon, lat] = mgrs.inverse(usngCoord); 
+                if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                    showResult('Некоректний формат USNG або значення поза допустимими межами. Перевірте ввід.', true);
+                    return;
+                }
+                const result = `
+                    <h3>Lat/Lon (DD) координати:</h3>
+                    <p><strong>Широта (DD):</strong> ${lat.toFixed(6)}° ${addCopyButton(lat.toFixed(6), 'Копіювати')}</p>
+                    <p><strong>Довгота (DD):</strong> ${lon.toFixed(6)}° ${addCopyButton(lon.toFixed(6), 'Копіювати')}</p>
+                `;
+                showResult(result);
+                showOnMap(lat, lon);
+            } catch (error) {
+                console.error("USNG to LatLon Conversion Error:", error);
+                showResult(`Помилка конвертації USNG в Lat/Lon: ${error.message}`, true);
+            }
+        }
+
 
         function convertDDMToLatLon() {
             console.log("convertDDMToLatLon called");
@@ -1173,6 +1302,7 @@
             document.getElementById('utmZoneInput').style.borderColor = '#e0e0e0';
             document.getElementById('utmEastingInput').style.borderColor = '#e0e0e0';
             document.getElementById('utmNorthingInput').style.borderColor = '#e0e0e0';
+            document.getElementById('usngInput').style.borderColor = '#e0e0e0'; // New
             document.getElementById('ddmLatInput').style.borderColor = '#e0e0e0';
             document.getElementById('ddmLonInput').style.borderColor = '#e0e0e0';
             document.getElementById('dmsLatInput').style.borderColor = '#e0e0e0';
@@ -1194,6 +1324,7 @@
             document.getElementById('utmZoneInput').value = '';
             document.getElementById('utmEastingInput').value = '';
             document.getElementById('utmNorthingInput').value = '';
+            document.getElementById('usngInput').value = ''; // New
             document.getElementById('ddmLatInput').value = '';
             document.getElementById('ddmLonInput').value = '';
             document.getElementById('dmsLatInput').value = '';
@@ -1279,6 +1410,7 @@
             document.getElementById('latInput').addEventListener('input', validateInput);
             document.getElementById('lonInput').addEventListener('input', validateInput);
             document.getElementById('mgrsInput').addEventListener('input', validateMGRSInput);
+            document.getElementById('usngInput').addEventListener('input', validateUSNGInput); // New
             document.getElementById('utmZoneInput').addEventListener('input', validateUTMInput);
             document.getElementById('utmEastingInput').addEventListener('input', validateUTMInput);
             document.getElementById('utmNorthingInput').addEventListener('input', validateUTMInput);
@@ -1297,6 +1429,9 @@
             });
             document.getElementById('mgrsInput').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') convertMGRSToLatLon();
+            });
+            document.getElementById('usngInput').addEventListener('keypress', function(e) { // New
+                if (e.key === 'Enter') convertUSNGToLatLon();
             });
             document.getElementById('utmZoneInput').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') convertUTMToLatLon();
@@ -1323,6 +1458,10 @@
             // Автоматичне форматування вводу MGRS
             document.getElementById('mgrsInput').addEventListener('input', function(e) {
                 e.target.value = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '');
+            });
+             // Автоматичне форматування вводу USNG (видалення зайвих пробілів)
+            document.getElementById('usngInput').addEventListener('input', function(e) {
+                e.target.value = e.target.value.toUpperCase().replace(/\s+/g, ' ').trim();
             });
         });
     </script>
