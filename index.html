@@ -1455,50 +1455,112 @@
         }
 
         function clearInputs() {
-            document.getElementById('latInput').value = '';
-            document.getElementById('lonInput').value = '';
-            clearOtherInputs(); // Очистити всі інші поля
-            document.getElementById('result').style.display = 'none';
+    // Очищення значень полів вводу
+    const latInput = document.getElementById('latInput');
+    if (latInput) latInput.value = '';
 
-            // Скидання стилів borders
-            document.getElementById('latInput').style.borderColor = '#e0e0e0';
-            document.getElementById('lonInput').style.borderColor = '#e0e0e0';
-            document.getElementById('mgrsInput').style.borderColor = '#e0e0e0';
-            document.getElementById('usngInput').style.borderColor = '#e0e0e0'; 
-            document.getElementById('usk2000EastingInput').style.borderColor = '#e0e0e0'; // New
-            document.getElementById('usk2000NorthingInput').style.borderColor = '#e0e0e0'; // New
-            document.getElementById('utmZoneInput').style.borderColor = '#e0e0e0';
-            document.getElementById('utmEastingInput').style.borderColor = '#e0e0e0';
-            document.getElementById('utmNorthingInput').style.borderColor = '#e0e0e0';
-            document.getElementById('ddmLatInput').style.borderColor = '#e0e0e0';
-            document.getElementById('ddmLonInput').style.borderColor = '#e0e0e0';
-            document.getElementById('dmsLatInput').style.borderColor = '#e0e0e0';
-            document.getElementById('dmsLonInput').style.borderColor = '#e0e0e0';
+    const lonInput = document.getElementById('lonInput');
+    if (lonInput) lonInput.value = '';
+
+    const mgrsInput = document.getElementById('mgrsInput');
+    if (mgrsInput) mgrsInput.value = '';
+
+    const usngInput = document.getElementById('usngInput');
+    if (usngInput) usngInput.value = '';
+
+    const usk2000EastingInput = document.getElementById('usk2000EastingInput');
+    if (usk2000EastingInput) usk2000EastingInput.value = '';
+
+    const usk2000NorthingInput = document.getElementById('usk2000NorthingInput');
+    if (usk2000NorthingInput) usk2000NorthingInput.value = '';
+
+    const utmZoneInput = document.getElementById('utmZoneInput');
+    if (utmZoneInput) utmZoneInput.value = '';
+
+    const utmEastingInput = document.getElementById('utmEastingInput');
+    if (utmEastingInput) utmEastingInput.value = '';
+
+    const utmNorthingInput = document.getElementById('utmNorthingInput');
+    if (utmNorthingInput) utmNorthingInput.value = '';
+
+    const ddmLatInput = document.getElementById('ddmLatInput');
+    if (ddmLatInput) ddmLatInput.value = '';
+
+    const ddmLonInput = document.getElementById('ddmLonInput');
+    if (ddmLonInput) ddmLonInput.value = '';
+
+    const dmsLatInput = document.getElementById('dmsLatInput');
+    if (dmsLatInput) dmsLatInput.value = '';
+
+    const dmsLonInput = document.getElementById('dmsLonInput');
+    if (dmsLonInput) dmsLonInput.value = '';
+
+    // Приховуємо результати
+    const resultDiv = document.getElementById('result');
+    if (resultDiv) resultDiv.style.display = 'none';
 
 
-            // Видалення маркера з карти Google Maps
-            if (currentMarker) {
-                currentMarker.map = null; // Видаляємо AdvancedMarkerElement з карти
-                currentMarker = null;
-            }
-            // Показати плейсхолдер карти знову
-            document.querySelector('.map-placeholder').style.display = 'flex';
-        }
+    // Скидання стилів border-color для всіх полів вводу
+    if (latInput) latInput.style.borderColor = '#e0e0e0';
+    if (lonInput) lonInput.style.borderColor = '#e0e0e0';
+    if (mgrsInput) mgrsInput.style.borderColor = '#e0e0e0';
+    if (usngInput) usngInput.style.borderColor = '#e0e0e0';
+    if (usk2000EastingInput) usk2000EastingInput.style.borderColor = '#e0e0e0';
+    if (usk2000NorthingInput) usk2000NorthingInput.style.borderColor = '#e0e0e0';
+    if (utmZoneInput) utmZoneInput.style.borderColor = '#e0e0e0';
+    if (utmEastingInput) utmEastingInput.style.borderColor = '#e0e0e0';
+    if (utmNorthingInput) utmNorthingInput.style.borderColor = '#e0e0e0';
+    if (ddmLatInput) ddmLatInput.style.borderColor = '#e0e0e0';
+    if (ddmLonInput) ddmLonInput.style.borderColor = '#e0e0e0';
+    if (dmsLatInput) dmsLatInput.style.borderColor = '#e0e0e0';
+    if (dmsLonInput) dmsLonInput.style.borderColor = '#e0e0e0';
 
-        // Допоміжна функція для очищення всіх полів, крім Lat/Lon
-        function clearOtherInputs() {
-            document.getElementById('mgrsInput').value = '';
-            document.getElementById('usngInput').value = ''; 
-            document.getElementById('usk2000EastingInput').value = ''; // New
-            document.getElementById('usk2000NorthingInput').value = ''; // New
-            document.getElementById('utmZoneInput').value = '';
-            document.getElementById('utmEastingInput').value = '';
-            document.getElementById('utmNorthingInput').value = '';
-            document.getElementById('ddmLatInput').value = '';
-            document.getElementById('ddmLonInput').value = '';
-            document.getElementById('dmsLatInput').value = '';
-            document.getElementById('dmsLonInput').value = '';
-        }
+    // Видалення маркера з карти Google Maps
+    if (currentMarker) {
+        currentMarker.setMap(null);
+        currentMarker = null;
+    }
+    // Показати плейсхолдер карти знову
+    const mapPlaceholder = document.querySelector('.map-placeholder');
+    if (mapPlaceholder) mapPlaceholder.style.display = 'flex';
+}
+
+// Допоміжна функція для очищення всіх полів, крім Lat/Lon (використовується в setKyiv/Lviv/Odesa Coordinates)
+// Також оновлена з перевірками на null
+function clearOtherInputs() {
+    const mgrsInput = document.getElementById('mgrsInput');
+    if (mgrsInput) mgrsInput.value = '';
+
+    const usngInput = document.getElementById('usngInput');
+    if (usngInput) usngInput.value = '';
+
+    const usk2000EastingInput = document.getElementById('usk2000EastingInput');
+    if (usk2000EastingInput) usk2000EastingInput.value = '';
+
+    const usk2000NorthingInput = document.getElementById('usk2000NorthingInput');
+    if (usk2000NorthingInput) usk2000NorthingInput.value = '';
+
+    const utmZoneInput = document.getElementById('utmZoneInput');
+    if (utmZoneInput) utmZoneInput.value = '';
+
+    const utmEastingInput = document.getElementById('utmEastingInput');
+    if (utmEastingInput) utmEastingInput.value = '';
+
+    const utmNorthingInput = document.getElementById('utmNorthingInput');
+    if (utmNorthingInput) utmNorthingInput.value = '';
+
+    const ddmLatInput = document.getElementById('ddmLatInput');
+    if (ddmLatInput) ddmLatInput.value = '';
+
+    const ddmLonInput = document.getElementById('ddmLonInput');
+    if (ddmLonInput) ddmLonInput.value = '';
+
+    const dmsLatInput = document.getElementById('dmsLatInput');
+    if (dmsLatInput) dmsLatInput.value = '';
+
+    const dmsLonInput = document.getElementById('dmsLonInput');
+    if (dmsLonInput) dmsLonInput.value = '';
+}
 
         function showOnMapFromInputs() {
             const lat = parseFloat(document.getElementById('latInput').value);
